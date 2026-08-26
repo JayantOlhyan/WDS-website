@@ -816,7 +816,7 @@ export default function WdsHubPage() {
                     {[
                       { name: "WDS Main Website", href: "/" },
                       { name: "GitHub Organization", href: "https://github.com/wds-msit", ext: true },
-                      { name: "Bug Hunt Portal", href: "/projects#bug-hunt" },
+                      { name: "Bug Hunt Portal", href: "https://wds-bug-hunt.netlify.app/bug-hunt", ext: true },
                       { name: "WDS Terminal Shell", href: "/terminal" },
                       { name: "MSIT Official Portal", href: "https://msit.in", ext: true },
                       { name: "Brand Asset Kit", href: "/about" },
@@ -1079,7 +1079,7 @@ export default function WdsHubPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 {[
                   { name: "MSIT Official Portal", url: "https://msit.in", status: "LIVE", uptime: "99.98%" },
-                  { name: "WDS Bug Hunt Platform", url: "https://bughunt.wds-msit.org", status: "LIVE", uptime: "99.95%" },
+                  { name: "WDS Bug Hunt Platform", url: "https://wds-bug-hunt.netlify.app/bug-hunt", status: "LIVE", uptime: "99.95%" },
                   { name: "WDS Newsletter Engine", url: "https://newsletter.wds-msit.org", status: "LIVE", uptime: "100%" },
                   { name: "Freshers Hub 2026", url: "https://freshers.wds-msit.org", status: "LIVE", uptime: "99.9%" },
                   { name: "WDS Terminal CLI", url: "/terminal", status: "ACTIVE", uptime: "100%" },

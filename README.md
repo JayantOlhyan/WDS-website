@@ -25,7 +25,7 @@
 [![Web Audio API](https://img.shields.io/badge/Audio-Synthesizer-00FF66?style=for-the-badge&logoColor=050708)](https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API)
 [![License](https://img.shields.io/badge/License-MIT-FFD600?style=for-the-badge)](LICENSE)
 
-[**Explore Live Website**](https://wds-msit.org) • [**Recruitment Portal**](https://wds-msit.org/recruitment) • [**Interactive Terminal**](https://wds-msit.org/terminal) • [**Admin Hub**](https://wds-msit.org/hub)
+[**Explore Live Website**](https://wds-msit.org) • [**Live Bug Hunt**](https://wds-bug-hunt.netlify.app/bug-hunt) • [**Recruitment Portal**](https://wds-msit.org/recruitment) • [**Interactive Terminal**](https://wds-msit.org/terminal) • [**Admin Hub**](https://wds-msit.org/hub)
 
 ---
 

@@ -127,7 +127,7 @@ export function Footer() {
               <ul className="space-y-2 text-wds-muted">
                 {[
                   { name: "MSIT Website", href: "https://msit.in", ext: true },
-                  { name: "WDS Bug Hunt", href: "/projects#bug-hunt" },
+                  { name: "WDS Bug Hunt", href: "https://wds-bug-hunt.netlify.app/bug-hunt", ext: true },
                   { name: "Newsletter", href: "/projects#newsletter" },
                   { name: "Freshers Hub", href: "/projects#freshers-hub" },
                   { name: "Other Projects", href: "/projects" },

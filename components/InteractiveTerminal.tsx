@@ -197,9 +197,18 @@ export function InteractiveTerminal({
       newLines.push({
         id: `out-${Date.now()}`,
         type: "success",
-        text: "Launching WDS Bug Hunt portal...",
+        text: (
+          <div className="space-y-1">
+            <div className="text-wds-green font-bold">✓ Launching WDS Bug Hunt portal...</div>
+            <div className="text-wds-muted text-xs">
+              URL: <a href="https://wds-bug-hunt.netlify.app/bug-hunt" target="_blank" rel="noopener noreferrer" className="text-wds-yellow underline">https://wds-bug-hunt.netlify.app/bug-hunt</a>
+            </div>
+          </div>
+        ),
       });
-      setTimeout(() => router.push("/projects#bug-hunt"), 600);
+      if (typeof window !== "undefined") {
+        setTimeout(() => window.open("https://wds-bug-hunt.netlify.app/bug-hunt", "_blank"), 600);
+      }
     } else if (cmd === "events") {
       newLines.push({
         id: `out-${Date.now()}`,
