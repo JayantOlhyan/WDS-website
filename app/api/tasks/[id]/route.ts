@@ -1,25 +1,39 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireSession } from "@/lib/auth";
-import { taskService } from "@/lib/services/taskService";
-import { taskUpdateSchema } from "@/lib/validation/task";
+import { tasksRepository } from "@/lib/repositories/TasksRepository";
+import { updateTaskSchema } from "@/lib/validation/tasks";
 import { createErrorResponse, generateRequestId } from "@/lib/errors";
+
+export async function GET(
+  req: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  const requestId = generateRequestId();
+  const taskId = params.id;
+
+  const result = await tasksRepository.getById(taskId);
+  if (!result.success || !result.data) {
+    return createErrorResponse(
+      result.isOffline ? "DATABASE_OFFLINE" : "NOT_FOUND",
+      "Task not found or Notion offline.",
+      result.isOffline ? 503 : 404,
+      undefined,
+      requestId
+    );
+  }
+
+  return NextResponse.json({ success: true, data: result.data }, { status: 200, headers: { "X-Request-ID": requestId } });
+}
 
 export async function PATCH(
   req: NextRequest,
   { params }: { params: { id: string } }
 ) {
   const requestId = generateRequestId();
-  const auth = requireSession(req);
-  if ("response" in auth) return auth.response;
-
   const taskId = params.id;
-  if (!taskId) {
-    return createErrorResponse("VALIDATION_ERROR", "Task ID is required.", 400, undefined, requestId);
-  }
 
   try {
     const rawBody = await req.json();
-    const parseResult = taskUpdateSchema.safeParse(rawBody);
+    const parseResult = updateTaskSchema.safeParse(rawBody);
 
     if (!parseResult.success) {
       return createErrorResponse(
@@ -31,10 +45,16 @@ export async function PATCH(
       );
     }
 
-    const result = await taskService.updateTask(taskId, parseResult.data, auth.session);
+    const result = await tasksRepository.update(taskId, parseResult.data);
 
     if (!result.success) {
-      return createErrorResponse("PERSISTENCE_FAILED", "Failed to update task in Notion.", 500, undefined, requestId);
+      return createErrorResponse(
+        result.isOffline ? "DATABASE_OFFLINE" : "PERSISTENCE_FAILED",
+        "Failed to update task in Notion.",
+        result.isOffline ? 503 : 500,
+        undefined,
+        requestId
+      );
     }
 
     return NextResponse.json({ success: true, data: result.data }, { status: 200, headers: { "X-Request-ID": requestId } });
@@ -42,4 +62,25 @@ export async function PATCH(
     console.error("[PATCH /api/tasks/[id] Error]:", err);
     return createErrorResponse("INTERNAL_ERROR", "Server error while updating task.", 500, undefined, requestId);
   }
+}
+
+export async function DELETE(
+  req: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  const requestId = generateRequestId();
+  const taskId = params.id;
+
+  const result = await tasksRepository.archive(taskId);
+  if (!result.success) {
+    return createErrorResponse(
+      result.isOffline ? "DATABASE_OFFLINE" : "PERSISTENCE_FAILED",
+      "Failed to archive task in Notion.",
+      result.isOffline ? 503 : 500,
+      undefined,
+      requestId
+    );
+  }
+
+  return NextResponse.json({ success: true, message: "Task archived successfully." }, { status: 200, headers: { "X-Request-ID": requestId } });
 }

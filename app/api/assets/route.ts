@@ -1,22 +1,26 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireSession } from "@/lib/auth";
-import { assetService } from "@/lib/services/assetService";
-import { createAssetSchema } from "@/lib/validation/asset";
+import { assetsRepository } from "@/lib/repositories/AssetsRepository";
+import { createAssetSchema } from "@/lib/validation/assets";
 import { createErrorResponse, generateRequestId } from "@/lib/errors";
 
 export async function GET(req: NextRequest) {
   const requestId = generateRequestId();
-  const auth = requireSession(req);
-  if ("response" in auth) return auth.response;
+  const { searchParams } = new URL(req.url);
 
-  const result = await assetService.getAssets();
-  return NextResponse.json({ success: true, data: result.data, isOffline: result.isOffline }, { status: 200, headers: { "X-Request-ID": requestId } });
+  const category = searchParams.get("category") || undefined;
+  const search = searchParams.get("search") || undefined;
+
+  const result = await assetsRepository.getAll({ category, search });
+
+  if (!result.success && result.isOffline) {
+    return createErrorResponse("DATABASE_OFFLINE", "Notion Assets database is offline or unconfigured.", 503, undefined, requestId);
+  }
+
+  return NextResponse.json({ success: true, data: result.data }, { status: 200, headers: { "X-Request-ID": requestId } });
 }
 
 export async function POST(req: NextRequest) {
   const requestId = generateRequestId();
-  const auth = requireSession(req);
-  if ("response" in auth) return auth.response;
 
   try {
     const rawBody = await req.json();
@@ -32,9 +36,16 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const result = await assetService.createAsset(parseResult.data, auth.session);
+    const result = await assetsRepository.create(parseResult.data as any);
+
     if (!result.success) {
-      return createErrorResponse("PERSISTENCE_FAILED", "Failed to register asset in Notion.", 500, undefined, requestId);
+      return createErrorResponse(
+        result.isOffline ? "DATABASE_OFFLINE" : "PERSISTENCE_FAILED",
+        "Failed to register asset in Notion.",
+        result.isOffline ? 503 : 500,
+        undefined,
+        requestId
+      );
     }
 
     return NextResponse.json({ success: true, data: result.data }, { status: 201, headers: { "X-Request-ID": requestId } });

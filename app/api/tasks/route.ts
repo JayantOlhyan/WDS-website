@@ -1,22 +1,52 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireSession, requireMinimumRole } from "@/lib/auth";
-import { taskService } from "@/lib/services/taskService";
-import { createTaskSchema } from "@/lib/validation/task";
+import { tasksRepository } from "@/lib/repositories/TasksRepository";
+import { createTaskSchema } from "@/lib/validation/tasks";
 import { createErrorResponse, generateRequestId } from "@/lib/errors";
 
 export async function GET(req: NextRequest) {
   const requestId = generateRequestId();
-  const auth = requireSession(req);
-  if ("response" in auth) return auth.response;
+  const { searchParams } = new URL(req.url);
 
-  const result = await taskService.getTasks();
-  return NextResponse.json({ success: true, data: result.data, isOffline: result.isOffline }, { status: 200, headers: { "X-Request-ID": requestId } });
+  const status = searchParams.get("status") || undefined;
+  const priority = searchParams.get("priority") || undefined;
+  const project = searchParams.get("project") || undefined;
+  const assignee = searchParams.get("assignee") || undefined;
+  const dueDate = searchParams.get("dueDate") || undefined;
+  const search = searchParams.get("search") || undefined;
+  const page = parseInt(searchParams.get("page") || "1", 10);
+  const limit = parseInt(searchParams.get("limit") || "50", 10);
+
+  const result = await tasksRepository.getAll({
+    status,
+    priority,
+    project,
+    assignee,
+    dueDate,
+    search,
+    page,
+    limit,
+  });
+
+  if (!result.success && result.isOffline) {
+    return createErrorResponse("DATABASE_OFFLINE", "Notion Tasks database is offline or unconfigured.", 503, undefined, requestId);
+  }
+
+  return NextResponse.json(
+    {
+      success: true,
+      data: result.data,
+      pagination: {
+        page,
+        limit,
+        hasMore: Boolean(result.hasMore),
+      },
+    },
+    { status: 200, headers: { "X-Request-ID": requestId } }
+  );
 }
 
 export async function POST(req: NextRequest) {
   const requestId = generateRequestId();
-  const auth = requireMinimumRole(req, "TEAM_LEAD");
-  if ("response" in auth) return auth.response;
 
   try {
     const rawBody = await req.json();
@@ -32,10 +62,16 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const result = await taskService.createTask(parseResult.data, auth.session);
+    const result = await tasksRepository.create(parseResult.data);
 
     if (!result.success) {
-      return createErrorResponse("PERSISTENCE_FAILED", "Failed to create task in Notion.", 500, undefined, requestId);
+      return createErrorResponse(
+        result.isOffline ? "DATABASE_OFFLINE" : "PERSISTENCE_FAILED",
+        "Failed to create task in Notion.",
+        result.isOffline ? 503 : 500,
+        undefined,
+        requestId
+      );
     }
 
     return NextResponse.json({ success: true, data: result.data }, { status: 201, headers: { "X-Request-ID": requestId } });

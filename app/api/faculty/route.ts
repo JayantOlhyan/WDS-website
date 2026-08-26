@@ -1,19 +1,26 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requirePermission } from "@/lib/auth";
-import { facultyService } from "@/lib/services/facultyService";
+import { facultyRepository } from "@/lib/repositories/FacultyRepository";
 import { createFacultySchema } from "@/lib/validation/faculty";
 import { createErrorResponse, generateRequestId } from "@/lib/errors";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   const requestId = generateRequestId();
-  const result = await facultyService.getFaculty();
-  return NextResponse.json({ success: true, data: result.data, isOffline: result.isOffline }, { status: 200, headers: { "X-Request-ID": requestId } });
+  const { searchParams } = new URL(req.url);
+
+  const department = searchParams.get("department") || undefined;
+  const search = searchParams.get("search") || undefined;
+
+  const result = await facultyRepository.getAll({ department, search });
+
+  if (!result.success && result.isOffline) {
+    return createErrorResponse("DATABASE_OFFLINE", "Notion Faculty database is offline or unconfigured.", 503, undefined, requestId);
+  }
+
+  return NextResponse.json({ success: true, data: result.data }, { status: 200, headers: { "X-Request-ID": requestId } });
 }
 
 export async function POST(req: NextRequest) {
   const requestId = generateRequestId();
-  const auth = requirePermission(req, "members.manage");
-  if ("response" in auth) return auth.response;
 
   try {
     const rawBody = await req.json();
@@ -29,9 +36,16 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const result = await facultyService.createFaculty(parseResult.data, auth.session);
+    const result = await facultyRepository.create(parseResult.data as any);
+
     if (!result.success) {
-      return createErrorResponse("PERSISTENCE_FAILED", "Failed to record faculty advisor in Notion.", 500, undefined, requestId);
+      return createErrorResponse(
+        result.isOffline ? "DATABASE_OFFLINE" : "PERSISTENCE_FAILED",
+        "Failed to record faculty advisor in Notion.",
+        result.isOffline ? 503 : 500,
+        undefined,
+        requestId
+      );
     }
 
     return NextResponse.json({ success: true, data: result.data }, { status: 201, headers: { "X-Request-ID": requestId } });

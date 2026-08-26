@@ -181,6 +181,27 @@ class RetroAudioEngine {
       // Ignore
     }
   }
+
+  // Aliases
+  public click() {
+    this.playClick();
+  }
+
+  public confirm() {
+    this.playSuccess();
+  }
+
+  public error() {
+    this.playError();
+  }
+
+  public modalOpen() {
+    this.playClick();
+  }
+
+  public tabSwitch() {
+    this.playClick();
+  }
 }
 
 export const sound = new RetroAudioEngine();

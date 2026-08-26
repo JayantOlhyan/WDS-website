@@ -1,29 +1,39 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requirePermission } from "@/lib/auth";
-import { interviewService } from "@/lib/services/interviewService";
-import { interviewEvaluationSchema } from "@/lib/validation/interview";
+import { interviewsRepository } from "@/lib/repositories/InterviewsRepository";
+import { createInterviewSchema } from "@/lib/validation/interviews";
 import { createErrorResponse, generateRequestId } from "@/lib/errors";
 
 export async function GET(req: NextRequest) {
   const requestId = generateRequestId();
-  const auth = requirePermission(req, "recruitment.read");
-  if ("response" in auth) return auth.response;
-
   const { searchParams } = new URL(req.url);
-  const candidateId = searchParams.get("candidateId") || undefined;
 
-  const result = await interviewService.getEvaluations(candidateId);
-  return NextResponse.json({ success: true, data: result.data, isOffline: result.isOffline }, { status: 200, headers: { "X-Request-ID": requestId } });
+  const candidateId = searchParams.get("candidateId") || searchParams.get("candidate") || undefined;
+  const interviewer = searchParams.get("interviewer") || undefined;
+  const round = searchParams.get("round") || undefined;
+  const recommendation = searchParams.get("recommendation") || undefined;
+  const date = searchParams.get("date") || undefined;
+
+  const result = await interviewsRepository.getAll({
+    candidateId,
+    interviewer,
+    round,
+    recommendation,
+    date,
+  });
+
+  if (!result.success && result.isOffline) {
+    return createErrorResponse("DATABASE_OFFLINE", "Notion Interviews database is offline or unconfigured.", 503, undefined, requestId);
+  }
+
+  return NextResponse.json({ success: true, data: result.data }, { status: 200, headers: { "X-Request-ID": requestId } });
 }
 
 export async function POST(req: NextRequest) {
   const requestId = generateRequestId();
-  const auth = requirePermission(req, "recruitment.evaluate");
-  if ("response" in auth) return auth.response;
 
   try {
     const rawBody = await req.json();
-    const parseResult = interviewEvaluationSchema.safeParse(rawBody);
+    const parseResult = createInterviewSchema.safeParse(rawBody);
 
     if (!parseResult.success) {
       return createErrorResponse(
@@ -35,10 +45,16 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const result = await interviewService.submitEvaluation(parseResult.data, auth.session);
+    const result = await interviewsRepository.create(parseResult.data as any);
 
     if (!result.success) {
-      return createErrorResponse("PERSISTENCE_FAILED", "Failed to save interview evaluation in Notion.", 500, undefined, requestId);
+      return createErrorResponse(
+        result.isOffline ? "DATABASE_OFFLINE" : "PERSISTENCE_FAILED",
+        "Failed to save interview evaluation in Notion.",
+        result.isOffline ? 503 : 500,
+        undefined,
+        requestId
+      );
     }
 
     return NextResponse.json({ success: true, data: result.data }, { status: 201, headers: { "X-Request-ID": requestId } });

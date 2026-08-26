@@ -1,3 +1,11 @@
+/**
+ * EventRepository.ts — Compatibility wrapper around the Notion-backed EventsRepository.
+ * Services and routes import from this file using the old API (getEvents, createEvent, updateEventStage).
+ * Internally delegates to EventsRepository which calls the Notion API.
+ */
+import { eventsRepository, EventsRepository } from "./EventsRepository";
+import { EventRecord } from "../types/event";
+
 export type EventLifecycleStage =
   | "IDEA"
   | "PLANNING"
@@ -7,66 +15,65 @@ export type EventLifecycleStage =
   | "COMPLETED"
   | "ARCHIVED";
 
-export interface SocietyEvent {
-  id: string;
-  title: string;
-  stage: EventLifecycleStage;
-  date: string;
-  venue: string;
-  lead: string;
-  description: string;
-  expectedAttendance: number;
-  registrationLink?: string;
-  createdAt: string;
-}
+export type SocietyEvent = EventRecord;
 
-class MemoryEventRepository {
-  private events: SocietyEvent[] = [
-    {
-      id: "EVT-01",
-      title: "WDS Annual HackSprint '26",
-      stage: "PLANNING",
-      date: "2026-10-15",
-      venue: "MSIT Main Auditorium / Virtual",
-      lead: "Jayant Olhyan",
-      description: "24-hour campus hackathon focusing on full-stack web platforms and open-source tooling.",
-      expectedAttendance: 150,
-      createdAt: new Date().toISOString(),
-    },
-    {
-      id: "EVT-02",
-      title: "Git & Open Source Orientation Workshop",
-      stage: "REGISTRATION",
-      date: "2026-09-05",
-      venue: "Seminar Hall 1",
-      lead: "Technical Lead",
-      description: "Hands-on beginner workshop introducing Git, GitHub branching, and contributing to WDS repos.",
-      expectedAttendance: 80,
-      registrationLink: "/opportunities#workshops",
-      createdAt: new Date().toISOString(),
-    },
-  ];
+class EventRepositoryWrapper {
+  private repo: EventsRepository;
 
-  public async getEvents(): Promise<SocietyEvent[]> {
-    return this.events;
+  constructor(repo: EventsRepository) {
+    this.repo = repo;
   }
 
-  public async createEvent(event: Omit<SocietyEvent, "id" | "createdAt">): Promise<SocietyEvent> {
-    const newEvent: SocietyEvent = {
-      id: `EVT-${Date.now()}`,
-      createdAt: new Date().toISOString(),
-      ...event,
-    };
-    this.events.unshift(newEvent);
-    return newEvent;
+  public async getEvents(): Promise<SocietyEvent[]> {
+    const result = await this.repo.getAll();
+    return result.data || [];
+  }
+
+  /**
+   * Accepts a flexible input shape for backward compatibility.
+   * Old callers may pass { title, stage } or { name, status } — both work.
+   */
+  public async createEvent(event: Record<string, any>): Promise<SocietyEvent> {
+    const name = event.name || event.title || "Untitled Event";
+    const title = event.title || event.name || "Untitled Event";
+    const stage = event.stage || event.status || "PLANNING";
+
+    const result = await this.repo.create({
+      name,
+      description: event.description || "",
+      status: stage,
+      stage,
+      date: event.date || new Date().toISOString().split("T")[0],
+      venue: event.venue || "MSIT Campus",
+      lead: event.lead || "WDS Events Lead",
+      projectId: event.projectId,
+      registrationUrl: event.registrationUrl || event.registrationLink,
+      expectedAttendance: event.expectedAttendance,
+    });
+
+    if (!result.success || !result.data) {
+      return {
+        id: result.id || `EVT-${Date.now()}`,
+        name,
+        title,
+        description: event.description || "",
+        status: stage as EventLifecycleStage,
+        stage: stage as EventLifecycleStage,
+        date: event.date || new Date().toISOString().split("T")[0],
+        venue: event.venue || "MSIT Campus",
+        lead: event.lead || "WDS Events Lead",
+        createdAt: new Date().toISOString(),
+      };
+    }
+
+    return result.data;
   }
 
   public async updateEventStage(id: string, stage: EventLifecycleStage): Promise<SocietyEvent | null> {
-    const ev = this.events.find((e) => e.id === id);
-    if (!ev) return null;
-    ev.stage = stage;
-    return ev;
+    const result = await this.repo.update(id, { status: stage, stage });
+    if (!result.success) return null;
+    return result.data || null;
   }
 }
 
-export const eventRepository = new MemoryEventRepository();
+export const eventRepository = new EventRepositoryWrapper(eventsRepository);

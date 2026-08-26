@@ -1,6 +1,10 @@
 /**
- * Safe Notion property extraction helpers that handle missing or polymorphic property formats
+ * Safe Notion property extraction and building helpers that handle missing or polymorphic property formats
  */
+
+// -------------------------------------------------------------
+// Safe Notion property extractors
+// -------------------------------------------------------------
 
 export function extractTitle(property: any, defaultValue: string = ""): string {
   if (!property) return defaultValue;
@@ -26,6 +30,18 @@ export function extractSelect(property: any, defaultValue: string = ""): string 
   return defaultValue;
 }
 
+export function extractStatus(property: any, defaultValue: string = ""): string {
+  if (!property) return defaultValue;
+  if (property.status && property.status.name) {
+    return property.status.name;
+  }
+  // Fallback to select if defined as select in Notion
+  if (property.select && property.select.name) {
+    return property.select.name;
+  }
+  return defaultValue;
+}
+
 export function extractMultiSelect(property: any): string[] {
   if (!property) return [];
   if (property.multi_select && Array.isArray(property.multi_select)) {
@@ -38,6 +54,22 @@ export function extractNumber(property: any, defaultValue: number = 0): number {
   if (!property) return defaultValue;
   if (typeof property.number === "number") {
     return property.number;
+  }
+  return defaultValue;
+}
+
+export function extractCheckbox(property: any, defaultValue: boolean = false): boolean {
+  if (!property) return defaultValue;
+  if (typeof property.checkbox === "boolean") {
+    return property.checkbox;
+  }
+  return defaultValue;
+}
+
+export function extractDate(property: any, defaultValue: string = ""): string {
+  if (!property) return defaultValue;
+  if (property.date && property.date.start) {
+    return property.date.start;
   }
   return defaultValue;
 }
@@ -57,22 +89,6 @@ export function extractUrl(property: any, defaultValue: string = ""): string {
   return property.url || defaultValue;
 }
 
-export function extractDate(property: any, defaultValue: string = ""): string {
-  if (!property) return defaultValue;
-  if (property.date && property.date.start) {
-    return property.date.start;
-  }
-  return defaultValue;
-}
-
-export function extractCheckbox(property: any, defaultValue: boolean = false): boolean {
-  if (!property) return defaultValue;
-  if (typeof property.checkbox === "boolean") {
-    return property.checkbox;
-  }
-  return defaultValue;
-}
-
 export function extractRelationIds(property: any): string[] {
   if (!property) return [];
   if (property.relation && Array.isArray(property.relation)) {
@@ -87,13 +103,13 @@ export function extractRelationIds(property: any): string[] {
 
 export function buildTitle(content: string) {
   return {
-    title: [{ text: { content: content || "Untitled" } }],
+    title: [{ text: { content: (content || "").slice(0, 2000) } }],
   };
 }
 
 export function buildRichText(content: string) {
   return {
-    rich_text: [{ text: { content: content || "" } }],
+    rich_text: [{ text: { content: (content || "").slice(0, 2000) } }],
   };
 }
 
@@ -103,15 +119,33 @@ export function buildSelect(name: string) {
   };
 }
 
+export function buildStatus(name: string) {
+  return {
+    status: { name },
+  };
+}
+
 export function buildMultiSelect(names: string[]) {
   return {
-    multi_select: names.map((name) => ({ name })),
+    multi_select: names.filter(Boolean).map((name) => ({ name })),
   };
 }
 
 export function buildNumber(val: number) {
   return {
-    number: val,
+    number: typeof val === "number" && !isNaN(val) ? val : 0,
+  };
+}
+
+export function buildCheckbox(checked: boolean) {
+  return {
+    checkbox: Boolean(checked),
+  };
+}
+
+export function buildDate(isoDate: string) {
+  return {
+    date: { start: isoDate },
   };
 }
 
@@ -133,14 +167,8 @@ export function buildUrl(url: string) {
   };
 }
 
-export function buildDate(isoDate: string) {
-  return {
-    date: { start: isoDate },
-  };
-}
-
 export function buildRelation(ids: string[]) {
   return {
-    relation: ids.map((id) => ({ id })),
+    relation: ids.filter(Boolean).map((id) => ({ id })),
   };
 }

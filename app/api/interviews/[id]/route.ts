@@ -1,25 +1,39 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requirePermission } from "@/lib/auth";
-import { interviewService } from "@/lib/services/interviewService";
-import { interviewUpdateSchema } from "@/lib/validation/interview";
+import { interviewsRepository } from "@/lib/repositories/InterviewsRepository";
+import { updateInterviewSchema } from "@/lib/validation/interviews";
 import { createErrorResponse, generateRequestId } from "@/lib/errors";
+
+export async function GET(
+  req: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  const requestId = generateRequestId();
+  const interviewId = params.id;
+
+  const result = await interviewsRepository.getById(interviewId);
+  if (!result.success || !result.data) {
+    return createErrorResponse(
+      result.isOffline ? "DATABASE_OFFLINE" : "NOT_FOUND",
+      "Interview evaluation not found or Notion offline.",
+      result.isOffline ? 503 : 404,
+      undefined,
+      requestId
+    );
+  }
+
+  return NextResponse.json({ success: true, data: result.data }, { status: 200, headers: { "X-Request-ID": requestId } });
+}
 
 export async function PATCH(
   req: NextRequest,
   { params }: { params: { id: string } }
 ) {
   const requestId = generateRequestId();
-  const auth = requirePermission(req, "recruitment.evaluate");
-  if ("response" in auth) return auth.response;
-
   const interviewId = params.id;
-  if (!interviewId) {
-    return createErrorResponse("VALIDATION_ERROR", "Interview ID is required.", 400, undefined, requestId);
-  }
 
   try {
     const rawBody = await req.json();
-    const parseResult = interviewUpdateSchema.safeParse(rawBody);
+    const parseResult = updateInterviewSchema.safeParse(rawBody);
 
     if (!parseResult.success) {
       return createErrorResponse(
@@ -31,10 +45,16 @@ export async function PATCH(
       );
     }
 
-    const result = await interviewService.updateEvaluation(interviewId, parseResult.data, auth.session);
+    const result = await interviewsRepository.update(interviewId, parseResult.data as any);
 
     if (!result.success) {
-      return createErrorResponse("PERSISTENCE_FAILED", "Failed to update interview in Notion.", 500, undefined, requestId);
+      return createErrorResponse(
+        result.isOffline ? "DATABASE_OFFLINE" : "PERSISTENCE_FAILED",
+        "Failed to update interview in Notion.",
+        result.isOffline ? 503 : 500,
+        undefined,
+        requestId
+      );
     }
 
     return NextResponse.json({ success: true, data: result.data }, { status: 200, headers: { "X-Request-ID": requestId } });
@@ -42,4 +62,25 @@ export async function PATCH(
     console.error("[PATCH /api/interviews/[id] Error]:", err);
     return createErrorResponse("INTERNAL_ERROR", "Server error while updating interview.", 500, undefined, requestId);
   }
+}
+
+export async function DELETE(
+  req: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  const requestId = generateRequestId();
+  const interviewId = params.id;
+
+  const result = await interviewsRepository.archive(interviewId);
+  if (!result.success) {
+    return createErrorResponse(
+      result.isOffline ? "DATABASE_OFFLINE" : "PERSISTENCE_FAILED",
+      "Failed to archive interview in Notion.",
+      result.isOffline ? 503 : 500,
+      undefined,
+      requestId
+    );
+  }
+
+  return NextResponse.json({ success: true, message: "Interview evaluation archived successfully." }, { status: 200, headers: { "X-Request-ID": requestId } });
 }
