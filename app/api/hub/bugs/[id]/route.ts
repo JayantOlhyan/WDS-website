@@ -3,17 +3,19 @@ import { requireMinimumRole } from "@/lib/auth";
 import { bugRepository } from "@/lib/repositories/BugRepository";
 import { auditRepository } from "@/lib/repositories/AuditRepository";
 import { bugUpdateSchema } from "@/lib/validation";
+import { createErrorResponse, generateRequestId } from "@/lib/errors";
 
 export async function PATCH(
   req: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  const requestId = generateRequestId();
   const auth = requireMinimumRole(req, "TEAM_LEAD");
   if ("response" in auth) return auth.response;
 
   const bugId = params.id;
   if (!bugId) {
-    return NextResponse.json({ success: false, error: "VALIDATION_ERROR", message: "Bug ID is required." }, { status: 400 });
+    return createErrorResponse("VALIDATION_ERROR", "Bug ID is required.", 400, undefined, requestId);
   }
 
   try {
@@ -21,13 +23,12 @@ export async function PATCH(
     const parseResult = bugUpdateSchema.safeParse(rawBody);
 
     if (!parseResult.success) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "VALIDATION_ERROR",
-          details: parseResult.error.issues.map((i) => ({ field: i.path.join("."), message: i.message })),
-        },
-        { status: 400 }
+      return createErrorResponse(
+        "VALIDATION_ERROR",
+        "Invalid bug update payload.",
+        400,
+        parseResult.error.issues.map((i) => ({ field: i.path.join("."), message: i.message })),
+        requestId
       );
     }
 
@@ -35,10 +36,7 @@ export async function PATCH(
     const result = await bugRepository.updateBug(bugId, updates);
 
     if (!result.success) {
-      return NextResponse.json(
-        { success: false, error: "PERSISTENCE_FAILED", message: "Failed to update bug in database." },
-        { status: 500 }
-      );
+      return createErrorResponse("PERSISTENCE_FAILED", "Failed to update bug in database.", 500, undefined, requestId);
     }
 
     await auditRepository.logEvent({
@@ -47,12 +45,12 @@ export async function PATCH(
       action: "BUG_MUTATED",
       resource: "Bug",
       resourceId: bugId,
-      details: updates,
+      details: { ...updates, requestId },
     });
 
-    return NextResponse.json({ success: true, data: result.data }, { status: 200 });
+    return NextResponse.json({ success: true, data: result.data }, { status: 200, headers: { "X-Request-ID": requestId } });
   } catch (err) {
     console.error("[PATCH /api/hub/bugs/[id] Error]:", err);
-    return NextResponse.json({ success: false, error: "INTERNAL_ERROR" }, { status: 500 });
+    return createErrorResponse("INTERNAL_ERROR", "Server failure while updating bug.", 500, undefined, requestId);
   }
 }

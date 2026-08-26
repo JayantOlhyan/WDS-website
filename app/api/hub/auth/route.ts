@@ -5,6 +5,35 @@ import {
   validateAccessKey,
 } from "@/lib/auth";
 import { sessionStore } from "@/lib/sessionStore";
+import { generateRequestId } from "@/lib/errors";
+
+// In-memory brute force protection tracking failed login attempts by client IP
+interface RateLimitRecord {
+  attempts: number;
+  resetAt: number;
+}
+const loginRateLimitMap = new Map<string, RateLimitRecord>();
+
+function checkLoginRateLimit(ip: string): { allowed: boolean; remaining: number } {
+  const now = Date.now();
+  const record = loginRateLimitMap.get(ip);
+
+  if (!record || now > record.resetAt) {
+    loginRateLimitMap.set(ip, { attempts: 1, resetAt: now + 5 * 60 * 1000 });
+    return { allowed: true, remaining: 4 };
+  }
+
+  if (record.attempts >= 5) {
+    return { allowed: false, remaining: 0 };
+  }
+
+  record.attempts += 1;
+  return { allowed: true, remaining: 5 - record.attempts };
+}
+
+function clearLoginRateLimit(ip: string): void {
+  loginRateLimitMap.delete(ip);
+}
 
 export async function GET(req: NextRequest) {
   const session = getHubSessionFromRequest(req);
@@ -25,26 +54,64 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const requestId = generateRequestId();
+  const clientIp =
+    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+    req.headers.get("x-real-ip") ||
+    "127.0.0.1";
+
+  const rateCheck = checkLoginRateLimit(clientIp);
+  if (!rateCheck.allowed) {
+    return NextResponse.json(
+      {
+        success: false,
+        error: {
+          code: "RATE_LIMITED",
+          message: "Too many failed login attempts. Please wait 5 minutes before retrying.",
+          requestId,
+        },
+      },
+      { status: 429, headers: { "X-Request-ID": requestId, "Retry-After": "300" } }
+    );
+  }
+
   try {
     const body = await req.json();
     const { accessKey } = body;
 
     if (!accessKey || typeof accessKey !== "string") {
       return NextResponse.json(
-        { success: false, error: "VALIDATION_ERROR", message: "Access key is required." },
-        { status: 400 }
+        {
+          success: false,
+          error: {
+            code: "VALIDATION_ERROR",
+            message: "Access key is required.",
+            requestId,
+          },
+        },
+        { status: 400, headers: { "X-Request-ID": requestId } }
       );
     }
 
     const authResult = validateAccessKey(accessKey);
     if (!authResult) {
       return NextResponse.json(
-        { success: false, error: "UNAUTHORIZED", message: "Invalid access key. Access denied." },
-        { status: 401 }
+        {
+          success: false,
+          error: {
+            code: "UNAUTHORIZED",
+            message: "Invalid access key. Access denied.",
+            requestId,
+          },
+        },
+        { status: 401, headers: { "X-Request-ID": requestId } }
       );
     }
 
-    // Create opaque server session
+    // Login succeeded -> clear failed rate limit counter for this IP
+    clearLoginRateLimit(clientIp);
+
+    // Create tamper-proof signed server session
     const session = sessionStore.createSession(
       authResult.username,
       authResult.role,
@@ -60,13 +127,13 @@ export async function POST(req: NextRequest) {
           wing: session.wing,
         },
       },
-      { status: 200 }
+      { status: 200, headers: { "X-Request-ID": requestId } }
     );
 
-    // Set secure HTTP-only cookie with opaque session ID only
+    // Set secure HTTP-only cookie containing signed token
     response.cookies.set({
       name: HUB_COOKIE_NAME,
-      value: session.sessionId,
+      value: session.token,
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
@@ -78,8 +145,15 @@ export async function POST(req: NextRequest) {
   } catch (err: unknown) {
     console.error("[Hub Auth POST Error]:", err);
     return NextResponse.json(
-      { success: false, error: "INTERNAL_ERROR", message: "Authentication server error." },
-      { status: 500 }
+      {
+        success: false,
+        error: {
+          code: "INTERNAL_ERROR",
+          message: "Authentication server error.",
+          requestId,
+        },
+      },
+      { status: 500, headers: { "X-Request-ID": requestId } }
     );
   }
 }

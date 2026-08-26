@@ -1,4 +1,8 @@
-import { getNotionClient, NOTION_TASKS_DB_ID } from "@/lib/notion/client";
+import {
+  getNotionClient,
+  NOTION_TASKS_DB_ID,
+  queryNotionDatabaseWithPagination,
+} from "@/lib/notion/client";
 import { ITaskRepository, RepositoryQueryResult } from "./types";
 import { TaskItem } from "@/lib/hub/types";
 
@@ -15,12 +19,12 @@ class NotionTaskRepository implements ITaskRepository {
     }
 
     try {
-      const response = await notion.databases.query({
-        database_id: NOTION_TASKS_DB_ID,
+      const results = await queryNotionDatabaseWithPagination(NOTION_TASKS_DB_ID, {
+        maxRecords: 500,
         sorts: [{ timestamp: "created_time", direction: "descending" }],
       });
 
-      const tasks: TaskItem[] = response.results.map((page: any, idx: number) => {
+      const tasks: TaskItem[] = results.map((page: any, idx: number) => {
         const props = page.properties;
         const title =
           props.Task?.title?.[0]?.plain_text ||

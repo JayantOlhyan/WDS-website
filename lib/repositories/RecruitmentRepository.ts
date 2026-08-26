@@ -1,4 +1,8 @@
-import { getNotionClient, NOTION_RECRUITMENT_DB_ID } from "@/lib/notion/client";
+import {
+  getNotionClient,
+  NOTION_RECRUITMENT_DB_ID,
+  queryNotionDatabaseWithPagination,
+} from "@/lib/notion/client";
 import { IRecruitmentRepository, RepositoryQueryResult } from "./types";
 import { CandidateApplication, ApplicationStatus } from "@/lib/notion/recruitment";
 
@@ -36,12 +40,12 @@ class NotionRecruitmentRepository implements IRecruitmentRepository {
     }
 
     try {
-      const response = await notion.databases.query({
-        database_id: NOTION_RECRUITMENT_DB_ID,
+      const results = await queryNotionDatabaseWithPagination(NOTION_RECRUITMENT_DB_ID, {
+        maxRecords: 500,
         sorts: [{ timestamp: "created_time", direction: "descending" }],
       });
 
-      const applications: CandidateApplication[] = response.results.map((page: any, idx: number) => {
+      const applications: CandidateApplication[] = results.map((page: any, idx: number) => {
         const props = page.properties;
         const fullName =
           props["Full Name"]?.title?.[0]?.plain_text ||

@@ -6,20 +6,19 @@ import {
 } from "@/lib/repositories/RecruitmentRepository";
 import { auditRepository } from "@/lib/repositories/AuditRepository";
 import { recruitmentStatusUpdateSchema } from "@/lib/validation";
+import { createErrorResponse, generateRequestId } from "@/lib/errors";
 
 export async function PATCH(
   req: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  const requestId = generateRequestId();
   const auth = requireMinimumRole(req, "CORE_TEAM");
   if ("response" in auth) return auth.response;
 
   const candidateId = params.id;
   if (!candidateId) {
-    return NextResponse.json(
-      { success: false, error: "VALIDATION_ERROR", message: "Candidate ID is required." },
-      { status: 400 }
-    );
+    return createErrorResponse("VALIDATION_ERROR", "Candidate ID is required.", 400, undefined, requestId);
   }
 
   try {
@@ -27,18 +26,16 @@ export async function PATCH(
     const parseResult = recruitmentStatusUpdateSchema.safeParse(rawBody);
 
     if (!parseResult.success) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "VALIDATION_ERROR",
-          details: parseResult.error.issues.map((i) => ({ field: i.path.join("."), message: i.message })),
-        },
-        { status: 400 }
+      return createErrorResponse(
+        "VALIDATION_ERROR",
+        "Invalid recruitment status update payload.",
+        400,
+        parseResult.error.issues.map((i) => ({ field: i.path.join("."), message: i.message })),
+        requestId
       );
     }
 
     const { status: targetStatus, notes, interviewer } = parseResult.data;
-    const isAdmin = auth.session.role === "ADMIN";
 
     // Update Notion candidate record
     const result = await recruitmentRepository.updateApplicationStatus(
@@ -49,10 +46,7 @@ export async function PATCH(
     );
 
     if (!result.success) {
-      return NextResponse.json(
-        { success: false, error: "PERSISTENCE_FAILED", message: "Failed to update candidate in database." },
-        { status: 500 }
-      );
+      return createErrorResponse("PERSISTENCE_FAILED", "Failed to update candidate in database.", 500, undefined, requestId);
     }
 
     await auditRepository.logEvent({
@@ -61,12 +55,12 @@ export async function PATCH(
       action: "CANDIDATE_STATUS_UPDATED",
       resource: "CandidateApplication",
       resourceId: candidateId,
-      details: { newStatus: targetStatus, notes, interviewer },
+      details: { newStatus: targetStatus, notes, interviewer, requestId },
     });
 
-    return NextResponse.json({ success: true, data: result.data }, { status: 200 });
+    return NextResponse.json({ success: true, data: result.data }, { status: 200, headers: { "X-Request-ID": requestId } });
   } catch (err) {
     console.error("[PATCH /api/hub/recruitment/[id] Error]:", err);
-    return NextResponse.json({ success: false, error: "INTERNAL_ERROR" }, { status: 500 });
+    return createErrorResponse("INTERNAL_ERROR", "Server failure while updating candidate.", 500, undefined, requestId);
   }
 }

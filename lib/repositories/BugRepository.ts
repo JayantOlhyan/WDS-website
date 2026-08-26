@@ -1,4 +1,8 @@
-import { getNotionClient, NOTION_BUGS_DB_ID } from "@/lib/notion/client";
+import {
+  getNotionClient,
+  NOTION_BUGS_DB_ID,
+  queryNotionDatabaseWithPagination,
+} from "@/lib/notion/client";
 import { IBugRepository, RepositoryQueryResult } from "./types";
 import { BugItem } from "@/lib/hub/types";
 
@@ -15,12 +19,12 @@ class NotionBugRepository implements IBugRepository {
     }
 
     try {
-      const response = await notion.databases.query({
-        database_id: NOTION_BUGS_DB_ID,
+      const results = await queryNotionDatabaseWithPagination(NOTION_BUGS_DB_ID, {
+        maxRecords: 500,
         sorts: [{ timestamp: "created_time", direction: "descending" }],
       });
 
-      const bugs: BugItem[] = response.results.map((page: any, idx: number) => {
+      const bugs: BugItem[] = results.map((page: any, idx: number) => {
         const props = page.properties;
         const title =
           props.Title?.title?.[0]?.plain_text ||

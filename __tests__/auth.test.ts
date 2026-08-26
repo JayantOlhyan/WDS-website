@@ -4,20 +4,20 @@ import { validateAccessKey } from "../lib/auth";
 
 describe("Server-Side Authentication & Session Management", () => {
   beforeEach(() => {
-    sessionStore.cleanupExpired();
+    sessionStore.clearRevocationCache();
   });
 
-  it("creates a cryptographically secure 64-character hex session ID", () => {
+  it("creates a cryptographically secure signed session token", () => {
     const session = sessionStore.createSession("Jayant", "ADMIN", "President");
     expect(session.sessionId).toBeDefined();
-    expect(session.sessionId).toHaveLength(64);
+    expect(session.token).toContain(".");
     expect(session.role).toBe("ADMIN");
     expect(session.expiresAt).toBeGreaterThan(Date.now());
   });
 
-  it("retrieves a valid session from memory store", () => {
+  it("retrieves a valid session from signed token", () => {
     const session = sessionStore.createSession("Tester", "MEMBER", "Technical");
-    const retrieved = sessionStore.getSession(session.sessionId);
+    const retrieved = sessionStore.getSession(session.token);
     expect(retrieved).not.toBeNull();
     expect(retrieved?.username).toBe("Tester");
     expect(retrieved?.role).toBe("MEMBER");
@@ -30,10 +30,10 @@ describe("Server-Side Authentication & Session Management", () => {
 
   it("destroys session on logout", () => {
     const session = sessionStore.createSession("LogoutUser", "TEAM_LEAD", "Design");
-    expect(sessionStore.getSession(session.sessionId)).not.toBeNull();
+    expect(sessionStore.getSession(session.token)).not.toBeNull();
 
-    sessionStore.deleteSession(session.sessionId);
-    expect(sessionStore.getSession(session.sessionId)).toBeNull();
+    sessionStore.deleteSession(session.token);
+    expect(sessionStore.getSession(session.token)).toBeNull();
   });
 
   it("validates access key against configured roles in dev", () => {
