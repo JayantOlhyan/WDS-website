@@ -13,13 +13,23 @@ export interface ServerSession {
 // 7 days in milliseconds
 const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
+let fallbackProcessSecret: string | null = null;
+
 // Secret key for HMAC signature derivation
 function getSessionSecret(): string {
-  return (
-    process.env.HUB_SESSION_SECRET ||
-    process.env.HUB_ADMIN_KEY ||
-    "wds-secure-hub-session-secret-2026"
-  );
+  if (process.env.HUB_SESSION_SECRET) {
+    return process.env.HUB_SESSION_SECRET;
+  }
+  if (process.env.HUB_ADMIN_KEY) {
+    return process.env.HUB_ADMIN_KEY;
+  }
+  if (process.env.NODE_ENV === "production") {
+    if (!fallbackProcessSecret) {
+      fallbackProcessSecret = crypto.randomBytes(32).toString("hex");
+    }
+    return fallbackProcessSecret;
+  }
+  return "wds-secure-hub-session-secret-2026";
 }
 
 // In-memory revocation registry to support instant logout across serverless instances

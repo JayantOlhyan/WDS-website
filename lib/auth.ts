@@ -66,6 +66,15 @@ export function getHubSessionFromRequest(req: NextRequest): ServerSession | null
  * Enforces valid session presence. Returns 401 if missing or invalid.
  */
 export function requireSession(req: NextRequest): { session: ServerSession } | { response: NextResponse } {
+  if (!validateRequestOrigin(req)) {
+    return {
+      response: NextResponse.json(
+        { success: false, error: "FORBIDDEN", message: "Cross-site request blocked (Origin mismatch)." },
+        { status: 403 }
+      ),
+    };
+  }
+
   const session = getHubSessionFromRequest(req);
   if (!session) {
     return {

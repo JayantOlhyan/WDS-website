@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { validateRequestOrigin } from "../lib/auth";
+import { validateRequestOrigin, requireSession } from "../lib/auth";
+import { sessionStore } from "../lib/sessionStore";
 import { NextRequest } from "next/server";
 
 describe("CSRF & Origin / Referer Validation", () => {
@@ -30,5 +31,23 @@ describe("CSRF & Origin / Referer Validation", () => {
       },
     });
     expect(validateRequestOrigin(req)).toBe(false);
+  });
+
+  it("requireSession blocks cross-origin state-changing requests with 403 Forbidden", () => {
+    const session = sessionStore.createSession("AdminUser", "ADMIN", "Technical");
+    const req = new NextRequest("https://wds-msit.vercel.app/api/hub/tasks", {
+      method: "POST",
+      headers: {
+        origin: "https://evil-site.com",
+        host: "wds-msit.vercel.app",
+        cookie: `wds_hub_session=${session.token}`,
+      },
+    });
+
+    const result = requireSession(req);
+    expect("response" in result).toBe(true);
+    if ("response" in result) {
+      expect(result.response.status).toBe(403);
+    }
   });
 });
