@@ -5,23 +5,11 @@ import { taskRepository } from "@/lib/repositories/TaskRepository";
 import { bugRepository } from "@/lib/repositories/BugRepository";
 import { auditRepository } from "@/lib/repositories/AuditRepository";
 import { projectRepository } from "@/lib/repositories/ProjectRepository";
-
-function arrayToCsv(data: Record<string, any>[]): string {
-  if (data.length === 0) return "";
-  const headers = Object.keys(data[0]);
-  const rows = data.map((row) =>
-    headers
-      .map((header) => {
-        const val = row[header] ?? "";
-        const str = typeof val === "object" ? JSON.stringify(val) : String(val);
-        return `"${str.replace(/"/g, '""')}"`;
-      })
-      .join(",")
-  );
-  return [headers.join(","), ...rows].join("\n");
-}
+import { generateRequestId } from "@/lib/errors";
+import { arrayToCsv } from "@/lib/csv";
 
 export async function GET(req: NextRequest) {
+  const requestId = generateRequestId();
   const { searchParams } = new URL(req.url);
   const type = searchParams.get("type") || "tasks";
 
@@ -31,10 +19,21 @@ export async function GET(req: NextRequest) {
 
     const result = await recruitmentRepository.getApplications();
     const csv = arrayToCsv(result.data);
+
+    await auditRepository.logEvent({
+      actor: auth.session.username,
+      role: auth.session.role,
+      action: "RECRUITMENT_EXPORT_GENERATED",
+      resource: "CandidateApplications",
+      resourceId: "ALL",
+      details: { count: result.data.length, requestId },
+    });
+
     return new NextResponse(csv, {
       headers: {
         "Content-Type": "text/csv",
         "Content-Disposition": `attachment; filename="wds_recruitment_${Date.now()}.csv"`,
+        "X-Request-ID": requestId,
       },
     });
   }
@@ -45,10 +44,21 @@ export async function GET(req: NextRequest) {
 
     const logs = await auditRepository.getRecentLogs(200);
     const csv = arrayToCsv(logs);
+
+    await auditRepository.logEvent({
+      actor: auth.session.username,
+      role: auth.session.role,
+      action: "AUDIT_LOG_EXPORT_GENERATED",
+      resource: "AuditLog",
+      resourceId: "ALL",
+      details: { count: logs.length, requestId },
+    });
+
     return new NextResponse(csv, {
       headers: {
         "Content-Type": "text/csv",
         "Content-Disposition": `attachment; filename="wds_audit_${Date.now()}.csv"`,
+        "X-Request-ID": requestId,
       },
     });
   }
@@ -63,6 +73,7 @@ export async function GET(req: NextRequest) {
       headers: {
         "Content-Type": "text/csv",
         "Content-Disposition": `attachment; filename="wds_tasks_${Date.now()}.csv"`,
+        "X-Request-ID": requestId,
       },
     });
   }
@@ -74,6 +85,7 @@ export async function GET(req: NextRequest) {
       headers: {
         "Content-Type": "text/csv",
         "Content-Disposition": `attachment; filename="wds_bugs_${Date.now()}.csv"`,
+        "X-Request-ID": requestId,
       },
     });
   }
@@ -85,9 +97,13 @@ export async function GET(req: NextRequest) {
       headers: {
         "Content-Type": "text/csv",
         "Content-Disposition": `attachment; filename="wds_projects_${Date.now()}.csv"`,
+        "X-Request-ID": requestId,
       },
     });
   }
 
-  return NextResponse.json({ success: false, error: "INVALID_EXPORT_TYPE" }, { status: 400 });
+  return NextResponse.json(
+    { success: false, error: { code: "VALIDATION_ERROR", message: "Invalid export type.", requestId } },
+    { status: 400, headers: { "X-Request-ID": requestId } }
+  );
 }

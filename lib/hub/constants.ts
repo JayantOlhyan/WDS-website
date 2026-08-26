@@ -11,6 +11,7 @@ import {
   UserCheck,
   History,
   BookOpen,
+  RotateCcw,
   Settings,
 } from "lucide-react";
 import { NavGroupConfig, AssetItem } from "./types";
@@ -40,8 +41,9 @@ export const HUB_NAV_GROUPS: NavGroupConfig[] = [
     items: [
       { id: "members", label: "Society Members", icon: UserCheck },
       { id: "audit", label: "System Audit Log", icon: History },
-      { id: "documentation", label: "SOP & Handover", icon: BookOpen },
-      { id: "settings", label: "Settings & Access", icon: Settings },
+      { id: "documentation", label: "SOP Manuals", icon: BookOpen },
+      { id: "handover", label: "WDS Handover", icon: RotateCcw },
+      { id: "settings", label: "Admin & Settings", icon: Settings },
     ],
   },
 ];

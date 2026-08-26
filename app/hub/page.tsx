@@ -27,6 +27,8 @@ import { WebsiteView } from "@/components/hub/WebsiteView";
 import { MemberView } from "@/components/hub/MemberView";
 import { AuditView } from "@/components/hub/AuditView";
 import { DocumentationView } from "@/components/hub/DocumentationView";
+import { AdminView } from "@/components/hub/AdminView";
+import { HandoverView } from "@/components/hub/HandoverView";
 import { CommandPalette } from "@/components/hub/CommandPalette";
 import { TaskModal } from "@/components/hub/TaskModal";
 import { BugModal } from "@/components/hub/BugModal";
@@ -562,25 +564,39 @@ export default function WdsHubPage() {
 
           {activeTab === "documentation" && <DocumentationView />}
 
+          {activeTab === "handover" && (
+            <HandoverView
+              projects={projects}
+              tasks={tasks}
+              bugs={bugs}
+            />
+          )}
+
           {activeTab === "settings" && (
-            <div className="p-6 border-2 border-wds-yellow bg-wds-card shadow-pixel-yellow space-y-4">
-              <div className="font-pixel text-sm text-wds-yellow pb-2 border-b border-wds-yellow/30">
-                &gt;_ SYSTEM ACCESS &amp; CREDENTIAL CONFIGURATION
-              </div>
-              <div className="text-xs text-wds-muted space-y-2 leading-relaxed">
-                <div>
-                  Active User: <strong className="text-wds-white">{session.username}</strong>
+            <div className="space-y-6">
+              {session.role === "ADMIN" ? (
+                <AdminView onExportData={handleExportCsv} />
+              ) : (
+                <div className="p-6 border-2 border-wds-yellow bg-wds-card shadow-pixel-yellow space-y-4">
+                  <div className="font-pixel text-sm text-wds-yellow pb-2 border-b border-wds-yellow/30">
+                    &gt;_ MEMBER ACCESS &amp; CLEARANCE
+                  </div>
+                  <div className="text-xs text-wds-muted space-y-2 leading-relaxed font-mono">
+                    <div>
+                      Active User: <strong className="text-wds-white">{session.username}</strong>
+                    </div>
+                    <div>
+                      Role Clearance: <span className="text-wds-yellow font-pixel">{session.role}</span>
+                    </div>
+                    <div>
+                      Assigned Wing: <span className="text-wds-white">{session.wing}</span>
+                    </div>
+                    <div className="pt-3 border-t border-wds-yellow/20">
+                      System configuration and diagnostic console is reserved for users with <strong>ADMIN</strong> clearance.
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  Role Clearance: <span className="text-wds-yellow font-pixel">{session.role}</span>
-                </div>
-                <div>
-                  Assigned Wing: <span className="text-wds-white">{session.wing}</span>
-                </div>
-                <div className="pt-3 border-t border-wds-yellow/20">
-                  To rotate master access keys or update Notion database bindings, modify server environment variables in Vercel or <code>.env.local</code>.
-                </div>
-              </div>
+              )}
             </div>
           )}
         </main>

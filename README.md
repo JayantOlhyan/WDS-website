@@ -20,11 +20,14 @@ The WDS MSIT ecosystem unifies the public society identity and an internal opera
      (/, /recruitment, etc.)         (External Netlify)
               │                               │
       Zod Application Form           HMAC SHA-256 Webhook
-              │                               │
+              │                      (Idempotent Ingestion)
               ▼                               ▼
     POST /api/recruitment/apply    POST /api/hub/bugs/webhook
               │                               │
               └───────────────┬───────────────┘
+                              │
+                  REQUEST ID TRACING LAYER
+                      (X-Request-ID)
                               │
                     SERVER VALIDATION LAYER
                               │
@@ -46,27 +49,32 @@ The WDS MSIT ecosystem unifies the public society identity and an internal opera
 
 ---
 
-## 2. Core Operating Subsystems
+## 2. Core Operating Subsystems & Hardening Standards
 
-### A. People & Access Governance
-- **Granular Permissions Matrix (`lib/permissions.ts`)**: 25+ fine-grained permissions (`tasks.*`, `recruitment.evaluate`, `events.manage`, `content.publish`, `audit.read`, `system.export`).
-- **Single-Use Onboarding Tokens (`/api/hub/invitations`)**: Admin-controlled invitation generator issuing single-use, 7-day TTL tokens (`wds_inv_...`) for onboarding team leads and members.
+### A. Observability, Errors & Request ID Tracing
+- **Request Tracing (`lib/errors.ts`)**: Every mutation and API request generates a random opaque identifier (`req_...`) returned via `X-Request-ID` and structured error responses `{ error: { code, message, requestId } }`.
+- **Standardized Error Codes**: `UNAUTHORIZED`, `FORBIDDEN`, `VALIDATION_ERROR`, `NOT_FOUND`, `CONFLICT`, `RATE_LIMITED`, `DATABASE_OFFLINE`, `DATABASE_SCHEMA_MISMATCH`, `WEBHOOK_INVALID`, `INTERNAL_ERROR`.
+
+### B. Notion Schema Validation & Admin Diagnostic Center
+- **Central Schema Validator (`lib/notion/schemaValidator.ts`)**: Validates connection and property bindings on all 4 Notion databases (Recruitment, Tasks, Bugs, Websites) without exposing secret credentials.
+- **Admin Control Center (`components/hub/AdminView.tsx`, `/api/hub/config`)**: Restricted console for database bindings, credential status, and data exports.
+
+### C. Security & Data Integrity
+- **CSV Formula Injection Defense (`lib/csv.ts`)**: Sanitizes cells starting with `=, +, -, @` with a leading apostrophe to prevent spreadsheet code execution.
+- **Webhook Idempotency (`lib/webhook.ts`)**: Enforces single-delivery processing on `POST /api/hub/bugs/webhook` preventing duplicate bug creation on webhook replays.
+- **SSRF Defense**: Strict domain allowlist (`msit.in`, `wds-bug-hunt.netlify.app`, `github.com`), blocking private IPs (`10.x`, `192.168.x`, `169.254.x`), loopbacks, and redirects.
+
+### D. People & Access Governance
+- **Granular Permissions Matrix (`lib/permissions.ts`)**: 25+ fine-grained permissions mapped to `ADMIN`, `CORE_TEAM`, `TEAM_LEAD`, and `MEMBER`.
+- **Single-Use Onboarding Tokens (`/api/hub/invitations`)**: Admin-controlled invitation generator issuing single-use, 7-day TTL tokens (`wds_inv_...`).
 - **Member Directory (`/api/hub/members`)**: Contributor profiles, roles, assigned wings, and status (`ACTIVE`, `SUSPENDED`, `ALUMNI`).
 
-### B. Project System (`/api/hub/projects`)
-- Centralized project registry tracking active society repositories:
-  - `WDS Main Ecosystem Website`
-  - `WDS Bug Hunt Platform`
-  - `Recruitment 2026 Pipeline`
-  - `Freshers Hub & Resource Kit`
-  - `WDS Tech Newsletter & Radar`
-
-### C. Task Maturity & Concurrency
+### E. Task System & Operational Context
+- **Task Comments (`/api/hub/tasks/[id]/comments`)**: Operational activity trail per task for blockers and handover updates.
 - **Task Dependencies**: Badges indicating blocker tasks (`blockedBy`).
 - **Multi-View Sprints**: Filter by `ALL`, `MY_TASKS`, `TODAY`, `UPCOMING`, `BLOCKED`, and `COMPLETED`.
-- **Optimistic Concurrency**: Prevents lost updates using timestamp and version checking.
 
-### D. Recruitment 2026 Operations & Scorecards
+### F. Recruitment 2026 Operations & Scorecards
 - **Multi-Stage Lifecycle**: `RECEIVED` → `SCREENING` → `SHORTLISTED` → `INTERVIEW` → `SELECTED` / `REJECTED`.
 - **Interview Scorecards**: Structured 1–5 scoring across:
   - Technical Competence
@@ -75,25 +83,22 @@ The WDS MSIT ecosystem unifies the public society identity and an internal opera
   - Team Fit & Culture
 - **Data Export**: Authorized `CORE_TEAM` and `ADMIN` roles can export candidate CSVs (`/api/hub/export?type=recruitment`).
 
-### E. Events & Editorial Content Workflows
+### G. Events & Editorial Content Workflows
 - **Event Lifecycle**: `IDEA` → `PLANNING` → `ANNOUNCED` → `REGISTRATION` → `LIVE` → `COMPLETED` → `ARCHIVED`.
 - **Content Kanban**: `IDEA` → `DRAFT` → `REVIEW` → `APPROVED` → `SCHEDULED` → `PUBLISHED`.
 
-### F. Incidents & Live Website Health
+### H. Incidents & Live Website Health
 - **Incident Lifecycle**: `DETECTED` → `INVESTIGATING` → `IDENTIFIED` → `RESOLVED`.
-- **SSRF Defense**: Strict domain allowlist (`msit.in`, `wds-bug-hunt.netlify.app`, `github.com`), blocking private IPs (`10.x`, `192.168.x`, `169.254.x`), loopbacks, and redirects.
+- **Automated Detection**: State transitions (`ONLINE` → `OFFLINE` creates Incident; `OFFLINE` → `ONLINE` resolves incident with recorded downtime duration).
 
-### G. System Audit Log & In-App Notifications
-- **Audit Trail (`/api/hub/audit`)**: Immutable record of all member actions, candidate transitions, task mutations, and logins.
-- **In-App Notifications (`/api/hub/notifications`)**: Live event badges and dropdown alerts in the Hub header.
-
-### H. Standard Operating Procedures (SOPs) & Yearly Handover
-- Complete technical playbooks embedded in the Hub (`/hub` → Documentation):
-  - Production Deployment & CI/CD Manual
-  - Bug Hunt Webhook Triage SOP
-  - Recruitment Evaluation Guidelines
-  - Downtime & Incident Response Playbook
-  - Yearly Leadership Handover Protocol (`WDS 2026` → `WDS 2027`)
+### I. Yearly Leadership Handover Protocol
+- Dedicated Handover Console (`/hub` → Handover) with an interactive transition checklist:
+  - GitHub Organization Ownership Transfer
+  - Notion Workspace Admin Rights
+  - Master Passkey Rotation (`HUB_ADMIN_KEY`, `HUB_CORE_KEY`)
+  - Candidate Records Archival
+  - Domain & Vercel DNS Verification
+  - Member Roster Review (`WDS 2026` → `WDS 2027`)
 
 ---
 
@@ -129,7 +134,10 @@ BUG_HUNT_WEBHOOK_SECRET=your_hmac_shared_secret
 # Install dependencies
 npm install
 
-# Run automated test suite (Vitest)
+# Run linter
+npm run lint
+
+# Run automated test suite (Vitest - 51 tests)
 npm test
 
 # Run development server
@@ -145,6 +153,6 @@ npm run build
 
 Every pull request and push to `main` triggers `.github/workflows/ci.yml`:
 1. `npm ci`
-2. `npm run lint`
-3. `npm test` (39 automated unit & integration test suites)
-4. `npm run build`
+2. `npm run lint` (ESLint Next.js validation)
+3. `npm test` (51 automated unit & integration test suites)
+4. `npm run build` (32 static & dynamic routes compiled)

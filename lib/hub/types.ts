@@ -13,6 +13,7 @@ export type HubTab =
   | "members"
   | "audit"
   | "documentation"
+  | "handover"
   | "settings";
 
 export interface TaskItem {

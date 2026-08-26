@@ -44,7 +44,7 @@ export default function TeamPage() {
             {/* Wing Header */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-wds-yellow/30">
               <div className="flex items-center gap-3">
-                <span className="font-pixel text-xs text-wds-yellow">0{index + 1} //</span>
+                <span className="font-pixel text-xs text-wds-yellow">{"0" + (index + 1) + " //"}</span>
                 <h2 className="font-pixel text-lg sm:text-xl text-wds-white">{domain.name}</h2>
               </div>
               <p className="text-xs text-wds-muted max-w-md">{domain.description}</p>
