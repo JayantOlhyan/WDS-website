@@ -9,11 +9,19 @@ import {
   INITIAL_HUB_ASSETS,
   HUB_NAV_GROUPS,
 } from "@/lib/hub/constants";
+import {
+  CandidateApplication,
+  INITIAL_RECRUITMENT_APPLICATIONS,
+  ApplicationStatus,
+} from "@/lib/notion/recruitment";
+import { HubUserSession } from "@/lib/auth";
+import { HubAuthGuard } from "@/components/hub/HubAuthGuard";
 import { HubHeader } from "@/components/hub/HubHeader";
 import { HubSidebar } from "@/components/hub/HubSidebar";
 import { DashboardView } from "@/components/hub/DashboardView";
 import { TaskView } from "@/components/hub/TaskView";
 import { BugView } from "@/components/hub/BugView";
+import { RecruitmentView } from "@/components/hub/RecruitmentView";
 import { AssetView } from "@/components/hub/AssetView";
 import { WebsiteView } from "@/components/hub/WebsiteView";
 import { CommandPalette } from "@/components/hub/CommandPalette";
@@ -21,6 +29,9 @@ import { TaskModal } from "@/components/hub/TaskModal";
 import { BugModal } from "@/components/hub/BugModal";
 
 export default function WdsHubPage() {
+  const [session, setSession] = useState<HubUserSession | null>(null);
+  const [isAuthChecking, setIsAuthChecking] = useState<boolean>(true);
+
   const [activeTab, setActiveTab] = useState<HubTab>("dashboard");
   const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(false);
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState<boolean>(false);
@@ -32,7 +43,70 @@ export default function WdsHubPage() {
   // Application State
   const [tasks, setTasks] = useState<TaskItem[]>(INITIAL_HUB_TASKS);
   const [bugs, setBugs] = useState<BugItem[]>(INITIAL_HUB_BUGS);
+  const [applications, setApplications] = useState<CandidateApplication[]>(
+    INITIAL_RECRUITMENT_APPLICATIONS
+  );
   const [assets] = useState<AssetItem[]>(INITIAL_HUB_ASSETS);
+
+  // 1. Check Session on Mount
+  useEffect(() => {
+    const checkSession = async () => {
+      try {
+        const res = await fetch("/api/hub/auth");
+        const data = await res.json();
+        if (res.ok && data.authenticated && data.session) {
+          setSession(data.session);
+        }
+      } catch (err) {
+        console.warn("[Hub Session Check Error]:", err);
+      } finally {
+        setIsAuthChecking(false);
+      }
+    };
+    checkSession();
+  }, []);
+
+  // 2. Fetch Live Notion / Database Records once Authenticated
+  useEffect(() => {
+    if (!session) return;
+
+    const fetchLiveHubData = async () => {
+      // Fetch Tasks
+      try {
+        const tRes = await fetch("/api/hub/tasks");
+        const tData = await tRes.json();
+        if (tRes.ok && tData.success && tData.tasks?.length > 0) {
+          setTasks(tData.tasks);
+        }
+      } catch (err) {
+        console.warn("[Hub Tasks Fetch Error]:", err);
+      }
+
+      // Fetch Bugs
+      try {
+        const bRes = await fetch("/api/hub/bugs");
+        const bData = await bRes.json();
+        if (bRes.ok && bData.success && bData.bugs?.length > 0) {
+          setBugs(bData.bugs);
+        }
+      } catch (err) {
+        console.warn("[Hub Bugs Fetch Error]:", err);
+      }
+
+      // Fetch Recruitment Candidates
+      try {
+        const rRes = await fetch("/api/hub/recruitment");
+        const rData = await rRes.json();
+        if (rRes.ok && rData.success && rData.applications?.length > 0) {
+          setApplications(rData.applications);
+        }
+      } catch (err) {
+        console.warn("[Hub Recruitment Fetch Error]:", err);
+      }
+    };
+
+    fetchLiveHubData();
+  }, [session]);
 
   // Keyboard shortcut listener for Command Palette (⌘K / Ctrl+K)
   useEffect(() => {
@@ -52,6 +126,15 @@ export default function WdsHubPage() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
+  const handleLogout = async () => {
+    try {
+      await fetch("/api/hub/auth", { method: "DELETE" });
+    } catch {
+      // silent
+    }
+    setSession(null);
+  };
+
   const toggleTaskStatus = (id: string) => {
     sound.playClick();
     setTasks((prev) =>
@@ -65,13 +148,51 @@ export default function WdsHubPage() {
     );
   };
 
-  const handleAddTask = (newTask: TaskItem) => {
+  const handleAddTask = async (newTask: TaskItem) => {
     setTasks((prev) => [newTask, ...prev]);
+    try {
+      await fetch("/api/hub/tasks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newTask),
+      });
+    } catch (err) {
+      console.warn("[Add Task API Error]:", err);
+    }
   };
 
-  const handleAddBug = (newBug: BugItem) => {
+  const handleAddBug = async (newBug: BugItem) => {
     setBugs((prev) => [newBug, ...prev]);
+    try {
+      await fetch("/api/hub/bugs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newBug),
+      });
+    } catch (err) {
+      console.warn("[Add Bug API Error]:", err);
+    }
   };
+
+  const handleUpdateCandidateStatus = (id: string, newStatus: ApplicationStatus) => {
+    setApplications((prev) =>
+      prev.map((app) => (app.id === id ? { ...app, status: newStatus } : app))
+    );
+  };
+
+  // Auth checking skeleton
+  if (isAuthChecking) {
+    return (
+      <div className="w-full min-h-screen bg-wds-bg flex items-center justify-center font-pixel text-xs text-wds-yellow">
+        <span>&gt;_ INITIALIZING SECURE HUB ENVIRONMENT...</span>
+      </div>
+    );
+  }
+
+  // If unauthenticated, show retro Auth Challenge Gateway
+  if (!session) {
+    return <HubAuthGuard onAuthenticated={(s) => setSession(s)} />;
+  }
 
   return (
     <div className="flex flex-col w-full min-h-screen bg-wds-bg font-mono text-wds-white select-text">
@@ -86,6 +207,8 @@ export default function WdsHubPage() {
         onOpenNewTaskModal={() => setNewTaskModalOpen(true)}
         notifOpen={notifOpen}
         onToggleNotif={() => setNotifOpen(!notifOpen)}
+        session={session}
+        onLogout={handleLogout}
       />
 
       {/* 2. Main Layout Container */}
@@ -183,6 +306,13 @@ export default function WdsHubPage() {
             />
           )}
 
+          {activeTab === "recruitment" && (
+            <RecruitmentView
+              applications={applications}
+              onUpdateStatus={handleUpdateCandidateStatus}
+            />
+          )}
+
           {activeTab === "assets" && <AssetView assets={assets} />}
 
           {activeTab === "websites" && <WebsiteView />}
@@ -190,6 +320,7 @@ export default function WdsHubPage() {
           {activeTab !== "dashboard" &&
             activeTab !== "tasks" &&
             activeTab !== "bugs" &&
+            activeTab !== "recruitment" &&
             activeTab !== "assets" &&
             activeTab !== "websites" && (
               <div className="p-8 border-2 border-wds-yellow bg-wds-card text-center space-y-4 max-w-2xl mx-auto my-12">
@@ -197,7 +328,7 @@ export default function WdsHubPage() {
                   &gt;_ {activeTab.toUpperCase()} SUBSYSTEM
                 </div>
                 <p className="text-xs text-wds-muted leading-relaxed">
-                  This administrative module is ready for live operational sync.
+                  This administrative module is ready for live operational sync with Notion and GitHub.
                 </p>
                 <div className="pt-4 flex justify-center gap-3">
                   <button

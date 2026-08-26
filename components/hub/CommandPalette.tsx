@@ -38,6 +38,7 @@ export function CommandPalette({
     { label: "Go to Dashboard", tab: "dashboard" as HubTab, icon: LayoutDashboard, group: "Navigation" },
     { label: "Go to Tasks Board", tab: "tasks" as HubTab, icon: CheckSquare, group: "Navigation" },
     { label: "Go to Bug Tracker", tab: "bugs" as HubTab, icon: Bug, group: "Navigation" },
+    { label: "Go to Recruitment '26 Pipeline", tab: "recruitment" as HubTab, icon: CheckSquare, group: "Navigation" },
     { label: "Go to Asset Drive", tab: "assets" as HubTab, icon: FolderArchive, group: "Navigation" },
     { label: "Go to Websites Registry", tab: "websites" as HubTab, icon: Link2, group: "Navigation" },
     {

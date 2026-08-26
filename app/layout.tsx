@@ -61,8 +61,49 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "Organization",
+        "@id": "https://wds-msit.org/#organization",
+        name: "Web Development Society — MSIT",
+        alternateName: "WDS MSIT",
+        url: "https://wds-msit.org",
+        logo: "https://wds-msit.org/images/wds-logo.png",
+        sameAs: [
+          "https://github.com/JayantOlhyan/WDS-website",
+          "https://instagram.com/wds_msit",
+          "https://linkedin.com/company/wds-msit",
+        ],
+        address: {
+          "@type": "PostalAddress",
+          addressLocality: "Janakpuri",
+          addressRegion: "New Delhi",
+          postalCode: "110058",
+          addressCountry: "IN",
+        },
+      },
+      {
+        "@type": "WebSite",
+        "@id": "https://wds-msit.org/#website",
+        url: "https://wds-msit.org",
+        name: "WDS MSIT — Web Development Society",
+        publisher: {
+          "@id": "https://wds-msit.org/#organization",
+        },
+      },
+    ],
+  };
+
   return (
     <html lang="en" className="dark">
+      <head>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        />
+      </head>
       <body className="bg-wds-bg text-wds-white min-h-screen flex flex-col antialiased selection:bg-wds-yellow selection:text-wds-bg">
         {/* Subtle Scanline Overlay */}
         <CRTOverlay />

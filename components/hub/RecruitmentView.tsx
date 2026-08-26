@@ -1,0 +1,336 @@
+"use client";
+
+import React, { useState } from "react";
+import { sound } from "@/lib/soundEffects";
+import {
+  CandidateApplication,
+  ApplicationStatus,
+} from "@/lib/notion/recruitment";
+import {
+  Users,
+  Search,
+  CheckCircle,
+  Clock,
+  UserCheck,
+  Calendar,
+  ExternalLink,
+  Github,
+  Mail,
+  Phone,
+} from "lucide-react";
+
+interface RecruitmentViewProps {
+  applications: CandidateApplication[];
+  onUpdateStatus: (id: string, newStatus: ApplicationStatus) => void;
+}
+
+export function RecruitmentView({
+  applications,
+  onUpdateStatus,
+}: RecruitmentViewProps) {
+  const [activeStage, setActiveStage] = useState<"ALL" | ApplicationStatus>("ALL");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedCandidate, setSelectedCandidate] = useState<CandidateApplication | null>(
+    applications[0] || null
+  );
+
+  const stages: { label: string; value: "ALL" | ApplicationStatus }[] = [
+    { label: "ALL APPLICATIONS", value: "ALL" },
+    { label: "RECEIVED", value: "RECEIVED" },
+    { label: "SCREENING", value: "SCREENING" },
+    { label: "SHORTLISTED", value: "SHORTLISTED" },
+    { label: "INTERVIEWS", value: "INTERVIEW" },
+    { label: "SELECTED", value: "SELECTED" },
+    { label: "REJECTED", value: "REJECTED" },
+  ];
+
+  const filtered = applications.filter((app) => {
+    const matchesStage = activeStage === "ALL" || app.status === activeStage;
+    const matchesSearch =
+      app.fullName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      app.enrollmentNo.includes(searchQuery) ||
+      app.branch.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      app.preferredTeam.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchesStage && matchesSearch;
+  });
+
+  const getStatusColor = (status: ApplicationStatus) => {
+    switch (status) {
+      case "SELECTED":
+        return "bg-wds-green/20 text-wds-green border-wds-green";
+      case "INTERVIEW":
+        return "bg-wds-yellow/20 text-wds-yellow border-wds-yellow";
+      case "SHORTLISTED":
+        return "bg-[#64b5f6]/20 text-[#64b5f6] border-[#64b5f6]";
+      case "SCREENING":
+        return "bg-wds-card text-wds-white border-wds-yellow/40";
+      case "REJECTED":
+        return "bg-wds-red/20 text-wds-red border-wds-red";
+      case "RECEIVED":
+      default:
+        return "bg-wds-bg text-wds-muted border-wds-border-dim";
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Top Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b-2 border-wds-yellow/30">
+        <div>
+          <h1 className="font-pixel text-lg sm:text-xl text-wds-yellow">
+            &gt;_ RECRUITMENT 2026 PIPELINE
+          </h1>
+          <p className="text-xs text-wds-muted mt-0.5">
+            Manage candidate screening, interview schedules, and final onboarding decisions.
+          </p>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <div className="p-2 border border-wds-yellow/30 bg-wds-card text-right font-mono text-xs">
+            <div className="text-[9px] text-wds-muted">&gt;_ APPLICANTS</div>
+            <div className="font-pixel text-[10px] text-wds-green">
+              {applications.length} REGISTERED
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Stage Summary Cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 text-xs">
+        {[
+          { label: "RECEIVED", count: applications.filter((a) => a.status === "RECEIVED").length },
+          { label: "SCREENING", count: applications.filter((a) => a.status === "SCREENING").length },
+          { label: "SHORTLISTED", count: applications.filter((a) => a.status === "SHORTLISTED").length },
+          { label: "INTERVIEWS", count: applications.filter((a) => a.status === "INTERVIEW").length },
+          { label: "SELECTED", count: applications.filter((a) => a.status === "SELECTED").length },
+          { label: "REJECTED", count: applications.filter((a) => a.status === "REJECTED").length },
+        ].map((s) => (
+          <div
+            key={s.label}
+            onClick={() => {
+              sound.playClick();
+              setActiveStage(s.label as ApplicationStatus);
+            }}
+            className={`p-2.5 border-2 bg-wds-card text-center cursor-pointer transition-all hover:-translate-y-0.5 ${
+              activeStage === s.label
+                ? "border-wds-yellow shadow-pixel-yellow-sm"
+                : "border-wds-border-dim opacity-80 hover:opacity-100"
+            }`}
+          >
+            <div className="text-[9px] text-wds-muted font-pixel">{s.label}</div>
+            <div className="font-pixel text-base text-wds-yellow mt-1">{s.count}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Filter / Search Bar */}
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 p-3 bg-wds-card border border-wds-yellow/40">
+        <div className="relative w-full sm:w-72">
+          <Search className="w-3.5 h-3.5 text-wds-yellow absolute left-3 top-2.5 pointer-events-none" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search by name, roll no, wing..."
+            className="w-full pl-8 pr-3 py-1.5 bg-wds-bg border border-wds-yellow/30 text-xs text-wds-white outline-none focus:border-wds-yellow font-mono"
+          />
+        </div>
+
+        <div className="flex flex-wrap gap-1.5 w-full sm:w-auto">
+          {stages.slice(0, 5).map((stage) => (
+            <button
+              key={stage.value}
+              type="button"
+              onClick={() => {
+                sound.playClick();
+                setActiveStage(stage.value);
+              }}
+              className={`px-2.5 py-1 text-[10px] font-pixel transition-colors ${
+                activeStage === stage.value
+                  ? "bg-wds-yellow text-wds-bg font-bold"
+                  : "bg-wds-bg border border-wds-border-dim text-wds-muted hover:text-wds-white"
+              }`}
+            >
+              {stage.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Candidate Pipeline Split View (List + Detail Drawer) */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        {/* Candidate List (7 cols) */}
+        <div className="lg:col-span-7 space-y-2.5">
+          {filtered.length > 0 ? (
+            filtered.map((candidate) => (
+              <div
+                key={candidate.id}
+                onClick={() => {
+                  sound.playClick();
+                  setSelectedCandidate(candidate);
+                }}
+                className={`p-4 border-2 bg-wds-card cursor-pointer transition-all ${
+                  selectedCandidate?.id === candidate.id
+                    ? "border-wds-yellow shadow-pixel-yellow"
+                    : "border-wds-yellow/40 hover:border-wds-yellow"
+                }`}
+              >
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-pixel text-[10px] text-wds-yellow">
+                        {candidate.id}
+                      </span>
+                      <span className="font-bold text-sm text-wds-white">
+                        {candidate.fullName}
+                      </span>
+                    </div>
+                    <div className="text-xs text-wds-muted mt-0.5">
+                      {candidate.branch} • Roll: {candidate.enrollmentNo}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={`px-2 py-0.5 font-pixel text-[9px] border ${getStatusColor(
+                        candidate.status
+                      )}`}
+                    >
+                      {candidate.status}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap items-center justify-between gap-2 pt-2.5 mt-2 border-t border-wds-yellow/20 text-xs text-wds-muted">
+                  <div className="flex items-center gap-2">
+                    <span className="text-wds-white font-bold">{candidate.preferredTeam}</span>
+                    <span>•</span>
+                    <span>{candidate.experienceLevel}</span>
+                  </div>
+                  <div className="text-[10px] text-wds-muted">
+                    Applied: {candidate.appliedDate}
+                  </div>
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="p-8 text-center border-2 border-wds-yellow/30 bg-wds-card space-y-2">
+              <div className="font-pixel text-xs text-wds-yellow">&gt;_ NO APPLICANTS IN THIS VIEW</div>
+              <p className="text-xs text-wds-muted">Try adjusting your filter or search query.</p>
+            </div>
+          )}
+        </div>
+
+        {/* Candidate Detail Drawer (5 cols) */}
+        <div className="lg:col-span-5">
+          {selectedCandidate ? (
+            <div className="p-5 border-2 border-wds-yellow bg-wds-card shadow-pixel-yellow space-y-5 sticky top-16">
+              <div className="flex items-center justify-between pb-3 border-b border-wds-yellow/30">
+                <div>
+                  <span className="font-pixel text-[9px] text-wds-yellow">
+                    {selectedCandidate.id}
+                  </span>
+                  <h3 className="font-pixel text-base text-wds-white">
+                    {selectedCandidate.fullName}
+                  </h3>
+                </div>
+                <span
+                  className={`px-2.5 py-1 font-pixel text-[10px] border ${getStatusColor(
+                    selectedCandidate.status
+                  )}`}
+                >
+                  {selectedCandidate.status}
+                </span>
+              </div>
+
+              {/* Contact & Roll info */}
+              <div className="space-y-2 text-xs">
+                <div className="p-2.5 bg-wds-bg border border-wds-yellow/20 space-y-1.5">
+                  <div className="flex justify-between">
+                    <span className="text-wds-muted">Enrollment No:</span>
+                    <span className="font-bold text-wds-white">
+                      {selectedCandidate.enrollmentNo}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-wds-muted">Branch / Section:</span>
+                    <span className="text-wds-white">
+                      {selectedCandidate.branch} ({selectedCandidate.section})
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between pt-1 border-t border-wds-yellow/10">
+                    <span className="text-wds-muted flex items-center gap-1">
+                      <Mail className="w-3 h-3 text-wds-yellow" />
+                      Email:
+                    </span>
+                    <a
+                      href={`mailto:${selectedCandidate.collegeEmail}`}
+                      className="text-wds-yellow hover:underline"
+                    >
+                      {selectedCandidate.collegeEmail}
+                    </a>
+                  </div>
+                </div>
+              </div>
+
+              {/* Skills & Time Commitment */}
+              <div className="space-y-2 text-xs">
+                <div className="text-[10px] font-pixel text-wds-yellow">&gt;_ APPLICANT PROFILE</div>
+                <div className="space-y-1 text-xs">
+                  <div>
+                    <span className="text-wds-muted">Preferred Wing: </span>
+                    <strong className="text-wds-white">{selectedCandidate.preferredTeam}</strong>
+                  </div>
+                  <div>
+                    <span className="text-wds-muted">Experience Level: </span>
+                    <strong className="text-wds-white">{selectedCandidate.experienceLevel}</strong>
+                  </div>
+                  <div>
+                    <span className="text-wds-muted">Time Commitment: </span>
+                    <strong className="text-wds-white">{selectedCandidate.timeCommitment}</strong>
+                  </div>
+                  {selectedCandidate.notes && (
+                    <div className="p-2 bg-wds-bg border border-wds-yellow/20 mt-2 text-wds-muted italic">
+                      &quot;{selectedCandidate.notes}&quot;
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Interview & Status Updater Action */}
+              <div className="pt-3 border-t border-wds-yellow/30 space-y-3">
+                <div className="text-[10px] font-pixel text-wds-yellow">&gt;_ STAGE TRANSITION</div>
+                <div className="grid grid-cols-2 gap-2 text-xs font-mono">
+                  {(["SCREENING", "SHORTLISTED", "INTERVIEW", "SELECTED", "REJECTED"] as const).map(
+                    (st) => (
+                      <button
+                        key={st}
+                        type="button"
+                        onClick={() => {
+                          sound.playSuccess();
+                          onUpdateStatus(selectedCandidate.id, st);
+                          setSelectedCandidate({ ...selectedCandidate, status: st });
+                        }}
+                        className={`p-2 border text-center transition-colors text-[10px] font-pixel ${
+                          selectedCandidate.status === st
+                            ? "bg-wds-yellow text-wds-bg font-bold border-wds-yellow"
+                            : "bg-wds-bg border-wds-border-dim text-wds-muted hover:border-wds-yellow hover:text-wds-white"
+                        }`}
+                      >
+                        {st}
+                      </button>
+                    )
+                  )}
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="p-8 text-center border-2 border-wds-yellow/30 bg-wds-card text-xs text-wds-muted">
+              Select a candidate from the list to view application details and update lifecycle stage.
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}

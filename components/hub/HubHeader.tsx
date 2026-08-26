@@ -4,6 +4,7 @@ import React from "react";
 import { sound } from "@/lib/soundEffects";
 import { Search, Bell, User, Plus, X, Menu, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { HubTab } from "@/lib/hub/types";
+import { HubUserSession } from "@/lib/auth";
 
 interface HubHeaderProps {
   activeTab: HubTab;
@@ -15,6 +16,8 @@ interface HubHeaderProps {
   onOpenNewTaskModal: () => void;
   notifOpen: boolean;
   onToggleNotif: () => void;
+  session?: HubUserSession | null;
+  onLogout?: () => void;
 }
 
 export function HubHeader({
@@ -27,6 +30,8 @@ export function HubHeader({
   onOpenNewTaskModal,
   notifOpen,
   onToggleNotif,
+  session,
+  onLogout,
 }: HubHeaderProps) {
   return (
     <header className="sticky top-0 z-30 w-full bg-wds-bg-secondary/95 backdrop-blur-md border-b-2 border-wds-yellow/40 px-3 sm:px-6 py-2.5 flex items-center justify-between gap-4">
@@ -139,18 +144,32 @@ export function HubHeader({
           )}
         </div>
 
-        {/* User Profile */}
+        {/* User Profile & Logout */}
         <div className="flex items-center gap-2 pl-2 border-l border-wds-yellow/30 text-xs">
           <div className="w-7 h-7 border border-wds-yellow bg-wds-card flex items-center justify-center text-wds-yellow">
             <User className="w-4 h-4" />
           </div>
           <div className="hidden lg:block text-left">
-            <div className="font-pixel text-[9px] text-wds-yellow leading-none">CORE LEAD</div>
-            <div className="text-[8px] text-wds-green mt-0.5 flex items-center gap-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-wds-green animate-pulse" />
-              ONLINE
+            <div className="font-pixel text-[9px] text-wds-yellow leading-none">
+              {session?.role || "GUEST"}
+            </div>
+            <div className="text-[8px] text-wds-muted mt-0.5 truncate max-w-[100px]">
+              {session?.username || "Authenticated"}
             </div>
           </div>
+          {onLogout && (
+            <button
+              type="button"
+              onClick={() => {
+                sound.playClick();
+                onLogout();
+              }}
+              className="ml-1 px-1.5 py-0.5 border border-wds-border-dim hover:border-wds-red text-wds-muted hover:text-wds-red text-[9px] font-pixel transition-colors"
+              title="Logout from Hub"
+            >
+              EXIT
+            </button>
+          )}
         </div>
       </div>
     </header>

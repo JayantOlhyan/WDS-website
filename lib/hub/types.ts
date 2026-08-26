@@ -4,10 +4,11 @@ export type HubTab =
   | "dashboard"
   | "tasks"
   | "bugs"
-  | "assets"
-  | "websites"
+  | "recruitment"
   | "content"
   | "events"
+  | "assets"
+  | "websites"
   | "faculty"
   | "resources"
   | "settings"
@@ -19,7 +20,7 @@ export interface TaskItem {
   project: string;
   priority: "HIGH" | "MEDIUM" | "LOW";
   dueDate: string;
-  status: "COMPLETED" | "IN_PROGRESS" | "PENDING";
+  status: "PENDING" | "IN_PROGRESS" | "COMPLETED";
   assignee: string;
 }
 
@@ -36,9 +37,9 @@ export interface BugItem {
 export interface AssetItem {
   id: string;
   name: string;
-  category: "LOGOS" | "IMAGES" | "POSTERS" | "DOCUMENTS" | "BRAND";
+  category: "LOGOS" | "POSTERS" | "BRAND" | "DOCUMENTS";
   size: string;
-  format: string;
+  format: "PNG" | "PDF" | "MD" | "SVG";
   updated: string;
 }
 
