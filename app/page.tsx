@@ -440,8 +440,13 @@ export default function HomePage() {
                   <StatusBadge status="LIVE" size="sm" />
                   <ArrowRight className="w-3.5 h-3.5 text-wds-yellow" />
                 </div>
-                <PixelButton href="/projects#bug-hunt" variant="primary" size="sm" className="w-full text-center">
-                  START HUNTING →
+                <PixelButton
+                  href="https://wds-bug-hunt.netlify.app/bug-hunt"
+                  variant="primary"
+                  size="sm"
+                  className="w-full text-center"
+                >
+                  [ LAUNCH LIVE BUG HUNT → ]
                 </PixelButton>
               </div>
             </PixelCard>
@@ -653,8 +658,8 @@ export default function HomePage() {
                 &gt;_ EVERY BUG YOU FIND MAKES MSIT BETTER.
               </div>
 
-              <PixelButton href="/recruitment/apply" variant="primary" size="md" className="w-full">
-                ENTER BUG HUNT →
+              <PixelButton href="https://wds-bug-hunt.netlify.app/bug-hunt" variant="primary" size="md" className="w-full">
+                [ ENTER BUG HUNT ARENA → ]
               </PixelButton>
             </div>
 
