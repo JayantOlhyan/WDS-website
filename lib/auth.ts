@@ -160,3 +160,34 @@ export function requirePermission(
   return authResult;
 }
 
+/**
+ * Validates Origin and Referer headers on state-changing mutation requests to protect against CSRF
+ */
+export function validateRequestOrigin(req: NextRequest): boolean {
+  const method = req.method.toUpperCase();
+  if (method === "GET" || method === "HEAD" || method === "OPTIONS") {
+    return true;
+  }
+
+  const origin = req.headers.get("origin");
+  const referer = req.headers.get("referer");
+  const host = req.headers.get("host");
+
+  if (!origin && !referer) {
+    // Direct server-to-server webhook requests (like bug hunt HMAC) bypass browser origin check
+    return true;
+  }
+
+  const target = origin || referer || "";
+  try {
+    const parsedTarget = new URL(target);
+    if (host && (parsedTarget.host === host || parsedTarget.hostname === "localhost" || parsedTarget.hostname.endsWith(".vercel.app"))) {
+      return true;
+    }
+  } catch {
+    return false;
+  }
+
+  return false;
+}
+

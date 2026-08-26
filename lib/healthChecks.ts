@@ -50,6 +50,9 @@ export function isUrlAllowedForHealthCheck(targetUrl: string): boolean {
       hostname.startsWith("10.") ||
       hostname.startsWith("192.168.") ||
       hostname.startsWith("169.254.") || // Cloud metadata IP
+      hostname.startsWith("fc00:") || // IPv6 Unique Local
+      hostname.startsWith("fd00:") || // IPv6 Unique Local
+      hostname.startsWith("fe80:") || // IPv6 Link-Local
       /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(hostname)
     ) {
       return false;
