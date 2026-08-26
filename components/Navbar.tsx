@@ -8,10 +8,12 @@ import { PixelButton } from "./ui/PixelButton";
 import { sound } from "@/lib/soundEffects";
 import { Volume2, VolumeX, Menu, X, Terminal } from "lucide-react";
 
+import { siteConfig } from "@/lib/siteConfig";
+
 export function Navbar() {
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [isMuted, setIsMuted] = useState(false);
+  const [isMuted, setIsMuted] = useState(true);
 
   useEffect(() => {
     setIsMuted(sound.getMuted());
@@ -27,14 +29,12 @@ export function Navbar() {
 
   const navLinks = [
     { label: "HOME", href: "/" },
-    { label: "ABOUT", href: "/about" },
-    { label: "PROJECTS", href: "/projects" },
-    { label: "OPPORTUNITIES", href: "/opportunities" },
-    { label: "RECRUITMENT", href: "/recruitment" },
-    { label: "TERMINAL", href: "/terminal" },
-    { label: "HUB", href: "/hub" },
-    { label: "TEAM", href: "/team" },
-    { label: "CONTACT", href: "/contact" },
+    ...siteConfig.navItems.map((item) => ({
+      label: item.name,
+      href: item.href,
+      isExternal: item.isExternal,
+      badge: item.badge,
+    })),
   ];
 
   return (

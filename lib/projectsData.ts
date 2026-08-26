@@ -1,39 +1,42 @@
+export type ProjectStatus = "LIVE" | "ACTIVE" | "IN DEVELOPMENT" | "COMING SOON";
+export type ProjectCategory = "Core Platform" | "Community" | "Open Source" | "Internal Tool";
+
 export interface Project {
   id: string;
   name: string;
-  shortTitle?: string;
+  shortTitle: string;
   tagline: string;
   description: string;
-  status: "LIVE" | "ACTIVE" | "IN DEVELOPMENT" | "COMING SOON";
-  category: "Core Platform" | "Community" | "Open Source" | "Internal Tool";
-  url: string;
+  status: ProjectStatus;
+  category: ProjectCategory;
+  url?: string;
   githubUrl?: string;
-  tags: string[];
+  technologies: string[];
   features?: string[];
-  iconType: "globe" | "bug" | "mail" | "users" | "terminal" | "code";
-  metrics?: { label: string; value: string }[];
+  featured?: boolean;
+  iconType: "code" | "bug" | "mail" | "users" | "terminal" | "hub";
 }
 
 export const WDS_PROJECTS: Project[] = [
   {
     id: "msit-website",
-    name: "MSIT Website",
+    name: "MSIT Official Website",
     shortTitle: "MSIT PORTAL",
-    tagline: "The digital experience for Maharaja Surajmal Institute of Technology.",
+    tagline: "Official institutional web portal for MSIT.",
     description:
-      "The official website of MSIT, designed, developed and actively maintained by WDS. Built for performance, accessibility and modern student navigation across all departments, notices, and academic portals.",
+      "Modern institutional web portal engineered for students, faculty, and administration of Maharaja Surajmal Institute of Technology.",
     status: "LIVE",
     category: "Core Platform",
     url: "https://msit.in",
-    githubUrl: "https://github.com/wds-msit/msit-website",
-    tags: ["Next.js", "TypeScript", "Tailwind CSS", "CMS"],
-    iconType: "globe",
+    technologies: ["Next.js", "TypeScript", "Tailwind CSS", "Node.js"],
     features: [
-      "Dynamic Department & Faculty Directory",
-      "Real-time Notices & Circulars System",
-      "Mobile-first responsive architecture",
-      "Strict accessibility & high Lighthouse score",
+      "Departmental syllabi, circulars and notices",
+      "Faculty profiles and research publications",
+      "Examination schedules and academic calendar",
+      "Responsive accessibility for desktop and mobile",
     ],
+    featured: true,
+    iconType: "code",
   },
   {
     id: "bug-hunt",
@@ -41,90 +44,94 @@ export const WDS_PROJECTS: Project[] = [
     shortTitle: "BUG HUNT",
     tagline: "Find bugs. Report issues. Earn points. Get rewarded.",
     description:
-      "A student-driven website QA and engagement platform where students explore the MSIT digital ecosystem, identify UI bugs, broken links, performance bottlenecks and usability issues, report them, earn points and compete on the leaderboard.",
-    status: "LIVE",
-    category: "Core Platform",
-    url: "https://wds-bug-hunt.netlify.app/bug-hunt",
-    githubUrl: "https://github.com/wds-msit/bug-hunt",
-    tags: ["React", "FastAPI", "PostgreSQL", "Gamification"],
-    iconType: "bug",
-    features: [
-      "Real-time submission & verification workflow",
-      "Live student leaderboard with tier badges",
-      "Interactive QA checklist & bug categorization",
-      "Exclusive swag & recognition reward tiers",
-    ],
-  },
-  {
-    id: "wds-newsletter",
-    name: "WDS Newsletter",
-    shortTitle: "NEWSLETTER",
-    tagline: "Choose what you want to hear about.",
-    description:
-      "Curated tech updates, student project spotlights, engineering deep-dives, hackathon announcements, and college tech trends delivered straight to your inbox.",
+      "A student-driven website QA and engagement platform where students explore MSIT digital platforms, identify UI bugs, broken links, or performance issues, report them, and compete on the leaderboard.",
     status: "LIVE",
     category: "Community",
-    url: "https://newsletter.wds-msit.org",
-    tags: ["Email Engine", "Markdown", "Automation"],
-    iconType: "mail",
+    url: "https://wds-bug-hunt.netlify.app/bug-hunt",
+    githubUrl: "https://github.com/JayantOlhyan/WDS-website",
+    technologies: ["React", "TypeScript", "Tailwind CSS"],
     features: [
-      "Topic preference customization (Dev, Design, AI, Events)",
-      "Student project breakdowns and postmortems",
-      "Curated engineering blogs & tech job drops",
+      "Step-by-step bug reporting workflow with screenshot attachments",
+      "Live bug discovery leaderboard and points calculation",
+      "Direct integration with WDS developer triage queue",
+      "Tiered reward milestones and developer recognition",
     ],
+    featured: true,
+    iconType: "bug",
+  },
+  {
+    id: "newsletter",
+    name: "WDS Tech Newsletter",
+    shortTitle: "NEWSLETTER",
+    tagline: "Curated web tech, engineering insights, and campus updates.",
+    description:
+      "A student-authored digital publication curating deep-dives into modern web development, browser engineering, open-source projects, and student developer spotlights.",
+    status: "IN DEVELOPMENT",
+    category: "Community",
+    technologies: ["Next.js", "MDX", "Tailwind CSS"],
+    features: [
+      "Technical breakdowns of modern web protocols and tools",
+      "Student project showcases and open-source spotlights",
+      "Curated campus tech news and hackathon recaps",
+    ],
+    featured: true,
+    iconType: "mail",
   },
   {
     id: "freshers-hub",
-    name: "Freshers Hub",
+    name: "MSIT Freshers Hub",
     shortTitle: "FRESHERS HUB",
-    tagline: "Your one-stop hub for everything you need as a fresher at MSIT.",
+    tagline: "The definitive survival guide & resource repository for first-year students.",
     description:
-      "Events, announcements, syllabus guides, senior notes, coding roadmaps, and community channels for first-year students to connect, learn and level up smoothly.",
-    status: "LIVE",
-    category: "Community",
-    url: "https://freshers.wds-msit.org",
-    tags: ["Next.js", "Resource Base", "Student Guide"],
-    iconType: "users",
+      "An onboarding portal curated by senior developers with notes, lab manuals, roadmaps, society guides, campus maps, and previous year examination papers.",
+    status: "IN DEVELOPMENT",
+    category: "Core Platform",
+    technologies: ["Next.js", "TypeScript", "Search Index"],
     features: [
-      "First-year survival guide & campus map",
-      "Curated tech stacks and beginner roadmaps",
-      "Direct Q&A forum with senior developers",
+      "Subject-wise notes and verified lab manual archives",
+      "Interactive campus guide and department directory",
+      "First-year coding roadmap and society onboarding",
     ],
+    featured: true,
+    iconType: "users",
   },
   {
-    id: "wds-terminal",
-    name: "WDS Web Terminal",
-    shortTitle: "TERMINAL OS",
-    tagline: "Interactive browser terminal for the WDS ecosystem.",
+    id: "terminal-cli",
+    name: "WDS Interactive Terminal",
+    shortTitle: "TERMINAL",
+    tagline: "UNIX-like browser shell for exploring the WDS ecosystem.",
     description:
-      "A retro UNIX-inspired interactive web CLI allowing students to query society status, explore open source projects, inspect system metrics, and trigger easter eggs.",
-    status: "ACTIVE",
+      "A browser-based command line interface allowing developers to navigate society projects, inspect system status, query member directory, and execute custom commands.",
+    status: "LIVE",
     category: "Internal Tool",
     url: "/terminal",
-    tags: ["React", "TypeScript", "CLI Engine"],
-    iconType: "terminal",
+    technologies: ["TypeScript", "Web Audio API", "CSS Grid"],
     features: [
-      "Custom simulated shell commands (`whoami`, `ls`, `join`)",
-      "Autocomplete & keyboard navigation",
-      "Direct execution of society workflows",
+      "Command history navigation with Arrow keys",
+      "Built-in commands: whoami, ls, status, events, bughunt, join",
+      "Keyboard shortcut hints and mobile quick chips",
     ],
+    featured: false,
+    iconType: "terminal",
   },
   {
-    id: "future-projects",
-    name: "More Projects Cooking",
-    shortTitle: "IN DEVELOPMENT",
-    tagline: "Something awesome is in the works!",
+    id: "wds-hub",
+    name: "WDS Website Hub",
+    shortTitle: "WEBSITE HUB",
+    tagline: "Internal operational control panel & system monitor.",
     description:
-      "We are constantly ideating and building new platforms that make a tangible difference in the MSIT student experience. Got an idea? Join WDS and lead it.",
-    status: "IN DEVELOPMENT",
-    category: "Open Source",
-    url: "/recruitment",
-    tags: ["R&D", "Open Source", "Next-Gen"],
-    iconType: "code",
+      "Administrative dashboard used by WDS leads to monitor active websites, track development sprints, triage reported bugs, and manage assets.",
+    status: "ACTIVE",
+    category: "Internal Tool",
+    url: "/hub",
+    technologies: ["Next.js App Router", "TypeScript", "Zod", "Command Palette"],
     features: [
-      "Campus event ticketing platform",
-      "WDS Open Source Component Library",
-      "Student project showcase gallery",
+      "Active websites registry and response time monitor",
+      "Command Palette (⌘K) for quick navigation and task execution",
+      "Sprint task checklist and Bug Hunt issue triage board",
+      "Responsive layout for desktop, tablet, and mobile",
     ],
+    featured: false,
+    iconType: "hub",
   },
 ];

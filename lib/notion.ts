@@ -1,80 +1,73 @@
 import { Client } from "@notionhq/client";
+import { RecruitmentApplicationInput } from "./validation";
 
-export interface RecruitmentFormData {
-  fullName: string;
-  enrollmentNo: string;
-  branch: string;
-  section: string;
-  collegeEmail: string;
-  phone: string;
-  interests: string[];
-  experienceLevel: string;
-  githubUrl?: string;
-  linkedinUrl?: string;
-  portfolioUrl?: string;
-  projectLinks?: string;
-  whyWds: string;
-  learningGoal: string;
-  scenarioResponse: string;
-  timeCommitment: string;
-  preferredTeam: string;
-}
-
-export async function submitToNotionDatabase(data: RecruitmentFormData): Promise<{
+export interface NotionSubmissionResult {
   success: boolean;
+  status: "PERSISTED" | "DUPLICATE" | "DATABASE_UNCONFIGURED" | "PERSISTENCE_FAILED";
   message: string;
   recordId?: string;
-  isMock?: boolean;
-}> {
+}
+
+export async function submitToNotionDatabase(
+  data: RecruitmentApplicationInput
+): Promise<NotionSubmissionResult> {
   const notionApiKey = process.env.NOTION_API_KEY;
   const notionDatabaseId = process.env.NOTION_DATABASE_ID;
 
+  // Truthful check: If database is unconfigured, return explicit status
   if (!notionApiKey || !notionDatabaseId) {
     console.warn(
-      "[WDS Recruitment] NOTION_API_KEY or NOTION_DATABASE_ID not detected in environment. Application logged locally and mock success returned."
+      "[WDS Recruitment] NOTION_API_KEY or NOTION_DATABASE_ID is unconfigured in environment."
     );
-    console.log("[WDS Recruitment Payload]:", JSON.stringify(data, null, 2));
-
-    // Return successful mock response so applicants have a seamless experience
     return {
-      success: true,
-      message: "Application received and logged successfully (Fallback Mode: configure NOTION_API_KEY & NOTION_DATABASE_ID for live sync).",
-      recordId: "mock-" + Date.now(),
-      isMock: true,
+      success: false,
+      status: "DATABASE_UNCONFIGURED",
+      message:
+        "The society recruitment database is currently being initialized. Please contact hello@wds.msit or try again shortly.",
     };
   }
 
   try {
     const notion = new Client({ auth: notionApiKey });
 
+    // Step 1: Duplicate check by Enrollment Number
+    try {
+      const existingQuery = await notion.databases.query({
+        database_id: notionDatabaseId,
+        filter: {
+          property: "Enrollment Number",
+          rich_text: {
+            equals: data.enrollmentNo,
+          },
+        },
+      });
+
+      if (existingQuery.results.length > 0) {
+        return {
+          success: false,
+          status: "DUPLICATE",
+          message: `An application for enrollment number ${data.enrollmentNo} has already been submitted for WDS 2026.`,
+        };
+      }
+    } catch (queryErr) {
+      console.warn("[WDS Recruitment] Duplicate query check error (skipping):", queryErr);
+    }
+
+    // Step 2: Create new Notion record
     const response = await notion.pages.create({
       parent: { database_id: notionDatabaseId },
       properties: {
         "Name": {
-          title: [
-            {
-              text: { content: data.fullName },
-            },
-          ],
+          title: [{ text: { content: data.fullName } }],
         },
         "Enrollment Number": {
-          rich_text: [
-            {
-              text: { content: data.enrollmentNo },
-            },
-          ],
+          rich_text: [{ text: { content: data.enrollmentNo } }],
         },
         "Branch": {
-          select: {
-            name: data.branch || "Unknown",
-          },
+          select: { name: data.branch },
         },
         "Section": {
-          rich_text: [
-            {
-              text: { content: data.section },
-            },
-          ],
+          rich_text: [{ text: { content: data.section } }],
         },
         "Email": {
           email: data.collegeEmail,
@@ -86,9 +79,7 @@ export async function submitToNotionDatabase(data: RecruitmentFormData): Promise
           multi_select: data.interests.map((item) => ({ name: item.substring(0, 50) })),
         },
         "Experience Level": {
-          select: {
-            name: data.experienceLevel || "Beginner",
-          },
+          select: { name: data.experienceLevel },
         },
         "GitHub": {
           url: data.githubUrl && data.githubUrl.startsWith("http") ? data.githubUrl : null,
@@ -101,62 +92,44 @@ export async function submitToNotionDatabase(data: RecruitmentFormData): Promise
         },
         "Projects & Work": {
           rich_text: [
-            {
-              text: { content: (data.projectLinks || "None provided").substring(0, 2000) },
-            },
+            { text: { content: (data.projectLinks || "None provided").substring(0, 2000) } },
           ],
         },
         "Why WDS": {
-          rich_text: [
-            {
-              text: { content: data.whyWds.substring(0, 2000) },
-            },
-          ],
+          rich_text: [{ text: { content: data.whyWds.substring(0, 2000) } }],
         },
         "Learning Goal": {
-          rich_text: [
-            {
-              text: { content: data.learningGoal.substring(0, 2000) },
-            },
-          ],
+          rich_text: [{ text: { content: data.learningGoal.substring(0, 2000) } }],
         },
         "Scenario Response": {
-          rich_text: [
-            {
-              text: { content: data.scenarioResponse.substring(0, 2000) },
-            },
-          ],
+          rich_text: [{ text: { content: data.scenarioResponse.substring(0, 2000) } }],
         },
         "Time Commitment": {
-          select: {
-            name: data.timeCommitment || "2-4 hours",
-          },
+          select: { name: data.timeCommitment },
         },
         "Preferred Team": {
-          select: {
-            name: data.preferredTeam || "General Tech",
-          },
+          select: { name: data.preferredTeam },
         },
         "Application Status": {
-          status: {
-            name: "NEW",
-          },
+          status: { name: "NEW" },
         },
       },
     });
 
     return {
       success: true,
-      message: "Application submitted directly to WDS Notion Database.",
+      status: "PERSISTED",
+      message: "Application submitted and recorded in WDS Recruitment Database.",
       recordId: response.id,
-      isMock: false,
     };
   } catch (error: unknown) {
-    console.error("[WDS Recruitment] Error sending to Notion:", error);
-    const errorMessage = error instanceof Error ? error.message : "Unknown error connecting to Notion";
+    console.error("[WDS Recruitment] Error persisting application:", error);
+    const errorMessage =
+      error instanceof Error ? error.message : "Internal error connecting to database.";
     return {
       success: false,
-      message: errorMessage,
+      status: "PERSISTENCE_FAILED",
+      message: `Failed to save application: ${errorMessage}. Please retry or email hello@wds.msit.`,
     };
   }
 }

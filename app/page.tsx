@@ -137,20 +137,20 @@ export default function HomePage() {
                   {/* Visual Simulation of System Architecture */}
                   <div className="grid grid-cols-2 gap-2 text-[11px]">
                     <div className="p-2 border border-wds-yellow/20 bg-wds-card">
-                      <div className="text-wds-muted text-[10px]">UPTIME</div>
-                      <div className="text-wds-green font-bold font-mono">99.98%</div>
+                      <div className="text-wds-muted text-[10px]">SYSTEM STATUS</div>
+                      <div className="text-wds-green font-bold font-mono">ONLINE</div>
                     </div>
                     <div className="p-2 border border-wds-yellow/20 bg-wds-card">
-                      <div className="text-wds-muted text-[10px]">ACTIVE USERS</div>
-                      <div className="text-wds-yellow font-bold font-mono">50,000+</div>
+                      <div className="text-wds-muted text-[10px]">ECOSYSTEM</div>
+                      <div className="text-wds-yellow font-bold font-mono">ACTIVE</div>
                     </div>
                     <div className="p-2 border border-wds-yellow/20 bg-wds-card">
                       <div className="text-wds-muted text-[10px]">BUG HUNT</div>
-                      <div className="text-wds-yellow font-bold font-mono">LEADERBOARD ON</div>
+                      <div className="text-wds-green font-bold font-mono">LIVE ARENA</div>
                     </div>
                     <div className="p-2 border border-wds-yellow/20 bg-wds-card">
-                      <div className="text-wds-muted text-[10px]">NEXT SPRINT</div>
-                      <div className="text-wds-white font-bold font-mono">ORIENTATION</div>
+                      <div className="text-wds-muted text-[10px]">RECRUITMENT</div>
+                      <div className="text-wds-white font-bold font-mono">2026 CYCLE</div>
                     </div>
                   </div>
 
@@ -316,7 +316,7 @@ export default function HomePage() {
           </div>
         </div>
 
-        {/* Bottom Metrics Bar (Matching Reference Poster #2) */}
+        {/* Bottom Metrics Bar (Truthful & Verified Structure) */}
         <div className="mt-12 p-6 bg-wds-bg-secondary border-2 border-wds-yellow shadow-pixel-yellow grid grid-cols-2 md:grid-cols-4 gap-6 items-center">
           {/* Stat 1: Real Projects */}
           <div className="flex items-center gap-3">
@@ -328,33 +328,33 @@ export default function HomePage() {
             </div>
           </div>
 
-          {/* Stat 2: Bugs Squashed */}
+          {/* Stat 2: Bug Hunt QA */}
           <div className="flex items-center gap-3">
             <Bug className="w-7 h-7 text-wds-yellow shrink-0" />
             <div>
-              <div className="text-[10px] font-mono text-wds-muted uppercase">BUGS SQUASHED</div>
-              <div className="font-pixel text-lg sm:text-xl text-wds-yellow">100+</div>
-              <div className="text-[10px] font-mono text-wds-muted">And Counting</div>
+              <div className="text-[10px] font-mono text-wds-muted uppercase">BUG HUNT QA</div>
+              <div className="font-pixel text-lg sm:text-xl text-wds-green">LIVE</div>
+              <div className="text-[10px] font-mono text-wds-muted">Community Testing</div>
             </div>
           </div>
 
-          {/* Stat 3: Members */}
+          {/* Stat 3: Society Wings */}
           <div className="flex items-center gap-3">
             <Users className="w-7 h-7 text-wds-yellow shrink-0" />
             <div>
-              <div className="text-[10px] font-mono text-wds-muted uppercase">MEMBERS</div>
-              <div className="font-pixel text-lg sm:text-xl text-wds-yellow">200+</div>
-              <div className="text-[10px] font-mono text-wds-muted">Active Builders</div>
+              <div className="text-[10px] font-mono text-wds-muted uppercase">SOCIETY WINGS</div>
+              <div className="font-pixel text-lg sm:text-xl text-wds-yellow">04</div>
+              <div className="text-[10px] font-mono text-wds-muted">Core Domains</div>
             </div>
           </div>
 
-          {/* Stat 4: Users Impacted */}
+          {/* Stat 4: Campus Reach */}
           <div className="flex items-center gap-3">
             <Globe className="w-7 h-7 text-wds-yellow shrink-0" />
             <div>
-              <div className="text-[10px] font-mono text-wds-muted uppercase">USERS IMPACTED</div>
-              <div className="font-pixel text-lg sm:text-xl text-wds-yellow">50K+</div>
-              <div className="text-[10px] font-mono text-wds-muted">And Growing</div>
+              <div className="text-[10px] font-mono text-wds-muted uppercase">CAMPUS REACH</div>
+              <div className="font-pixel text-lg sm:text-xl text-wds-yellow">MSIT</div>
+              <div className="text-[10px] font-mono text-wds-muted">Students &amp; Faculty</div>
             </div>
           </div>
         </div>

@@ -33,8 +33,6 @@ export default function ProjectsPage() {
 
   const getProjectIcon = (type: Project["iconType"]) => {
     switch (type) {
-      case "globe":
-        return <Globe className="w-6 h-6 text-wds-yellow" />;
       case "bug":
         return <Bug className="w-6 h-6 text-wds-yellow" />;
       case "mail":
@@ -43,6 +41,8 @@ export default function ProjectsPage() {
         return <Users className="w-6 h-6 text-wds-yellow" />;
       case "terminal":
         return <Terminal className="w-6 h-6 text-wds-yellow" />;
+      case "hub":
+        return <Globe className="w-6 h-6 text-wds-yellow" />;
       case "code":
       default:
         return <Code2 className="w-6 h-6 text-wds-yellow" />;
@@ -140,7 +140,7 @@ export default function ProjectsPage() {
 
               {/* Tech Tags */}
               <div className="flex flex-wrap gap-1.5 mb-6">
-                {project.tags.map((tag) => (
+                {project.technologies?.map((tag) => (
                   <span
                     key={tag}
                     className="px-2 py-0.5 border border-wds-border-dim bg-wds-bg text-[10px] text-wds-muted"
@@ -168,15 +168,26 @@ export default function ProjectsPage() {
                 <div />
               )}
 
-              <PixelButton
-                href={project.url}
-                external={project.url.startsWith("http")}
-                variant="primary"
-                size="sm"
-                className="flex-1 text-center"
-              >
-                {project.status === "IN DEVELOPMENT" ? "JOIN DEV TEAM →" : "EXPLORE PLATFORM →"}
-              </PixelButton>
+              {project.url ? (
+                <PixelButton
+                  href={project.url}
+                  external={project.url.startsWith("http")}
+                  variant="primary"
+                  size="sm"
+                  className="flex-1 text-center"
+                >
+                  EXPLORE PLATFORM →
+                </PixelButton>
+              ) : (
+                <PixelButton
+                  href="/recruitment/apply"
+                  variant="outline"
+                  size="sm"
+                  className="flex-1 text-center"
+                >
+                  JOIN DEV SPRINT →
+                </PixelButton>
+              )}
             </div>
           </div>
         ))}

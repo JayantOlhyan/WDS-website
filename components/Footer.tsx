@@ -128,10 +128,10 @@ export function Footer() {
                 {[
                   { name: "MSIT Website", href: "https://msit.in", ext: true },
                   { name: "WDS Bug Hunt", href: "https://wds-bug-hunt.netlify.app/bug-hunt", ext: true },
-                  { name: "Newsletter", href: "/projects#newsletter" },
+                  { name: "WDS Terminal CLI", href: "/terminal" },
+                  { name: "WDS Website Hub", href: "/hub" },
+                  { name: "Tech Newsletter", href: "/projects#newsletter" },
                   { name: "Freshers Hub", href: "/projects#freshers-hub" },
-                  { name: "Other Projects", href: "/projects" },
-                  { name: "In Development", href: "/projects" },
                 ].map((item) => (
                   <li key={item.name}>
                     <Link

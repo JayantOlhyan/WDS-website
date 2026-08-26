@@ -2,13 +2,18 @@
 
 class RetroAudioEngine {
   private ctx: AudioContext | null = null;
-  private isMuted: boolean = false;
+  private isMuted: boolean = true; // Default sound to OFF for accessibility & calm UX
 
   constructor() {
     if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("wds_sound_muted");
-      if (saved !== null) {
-        this.isMuted = saved === "true";
+      const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      if (prefersReducedMotion) {
+        this.isMuted = true;
+      } else {
+        const saved = localStorage.getItem("wds_sound_muted");
+        if (saved !== null) {
+          this.isMuted = saved === "true";
+        }
       }
     }
   }
