@@ -1,44 +1,14 @@
 import React from "react";
+import Image from "next/image";
 
 export function WDSLogo({ className = "w-10 h-10" }: { className?: string }) {
   return (
-    <div className={`relative flex items-center justify-center ${className}`}>
-      <svg
-        viewBox="0 0 100 100"
-        fill="none"
-        xmlns="http://www.w3.org/2000/svg"
-        className="w-full h-full"
-      >
-        {/* Yellow Circle Background */}
-        <circle cx="50" cy="50" r="48" fill="#FFD600" />
-        
-        {/* Retro CRT Monitor Computer Outer Body */}
-        <rect x="22" y="20" width="56" height="44" rx="3" fill="#050708" />
-        <rect x="26" y="24" width="48" height="34" rx="2" fill="#07151D" />
-        <rect x="28" y="26" width="44" height="30" fill="#050708" stroke="#FFD600" strokeWidth="1.5" />
-        
-        {/* Screen Content: Pixel Art Terminal & Text */}
-        <text x="32" y="38" fill="#FFD600" fontSize="7" fontWeight="bold" fontFamily="monospace">WEB</text>
-        <text x="32" y="47" fill="#FFD600" fontSize="7" fontWeight="bold" fontFamily="monospace">DEV</text>
-        
-        {/* CRT Scanline Glare */}
-        <line x1="58" y1="28" x2="68" y2="28" stroke="#FFD600" strokeWidth="1.5" strokeLinecap="round" />
-        <line x1="62" y1="33" x2="69" y2="33" stroke="#FFD600" strokeWidth="1.5" strokeLinecap="round" />
-        
-        {/* Disk Drive Slot / Power LED */}
-        <rect x="58" y="44" width="10" height="2" fill="#FFD600" />
-        <circle cx="68" cy="52" r="1.5" fill="#00FF66" />
-        
-        {/* Computer Stand Base */}
-        <rect x="42" y="64" width="16" height="4" fill="#050708" />
-        <rect x="30" y="68" width="40" height="5" rx="1" fill="#050708" />
-        
-        {/* Bottom Banner with SOCIETY MSIT */}
-        <path d="M18 76 H82 V89 H18 Z" fill="#050708" />
-        <text x="50" y="85" textAnchor="middle" fill="#FFD600" fontSize="7.5" fontWeight="900" fontFamily="'Space Mono', monospace" letterSpacing="0.5">
-          SOCIETY<tspan fontSize="5.5"> MSIT</tspan>
-        </text>
-      </svg>
+    <div className={`relative flex items-center justify-center shrink-0 ${className}`}>
+      <img
+        src="/images/wds-logo.png"
+        alt="WDS MSIT Official Logo"
+        className="w-full h-full object-contain select-none"
+      />
     </div>
   );
 }

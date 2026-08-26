@@ -5,9 +5,15 @@ import { Footer } from "@/components/Footer";
 import { CRTOverlay } from "@/components/ui/CRTOverlay";
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://wds-msit.org"),
   title: "WDS MSIT — Web Development Society",
   description:
     "Web Development Society at MSIT — a student-driven technology organization building, maintaining, and shipping real digital experiences.",
+  icons: {
+    icon: "/images/wds-logo.png",
+    shortcut: "/images/wds-logo.png",
+    apple: "/images/wds-logo.png",
+  },
   keywords: [
     "WDS MSIT",
     "Web Development Society",
@@ -26,6 +32,14 @@ export const metadata: Metadata = {
       "Web Development Society at MSIT — a student-driven technology organization building, maintaining, and shipping real digital experiences.",
     url: "https://wds-msit.org",
     siteName: "WDS MSIT",
+    images: [
+      {
+        url: "/images/wds-logo.png",
+        width: 800,
+        height: 800,
+        alt: "WDS MSIT Official Logo",
+      },
+    ],
     locale: "en_US",
     type: "website",
   },
@@ -34,6 +48,7 @@ export const metadata: Metadata = {
     title: "WDS MSIT — Web Development Society",
     description:
       "Web Development Society at MSIT — a student-driven technology community building, maintaining, and shipping real digital experiences.",
+    images: ["/images/wds-logo.png"],
   },
   robots: {
     index: true,

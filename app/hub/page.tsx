@@ -68,6 +68,11 @@ export default function WdsHubPage() {
           {/* Top Bar with Hub Title & Search & Profile */}
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-4 border-b-2 border-wds-yellow/30 bg-wds-bg-secondary">
             <div className="flex items-center gap-3">
+              <img
+                src="/images/wds-logo.png"
+                alt="WDS Logo"
+                className="w-9 h-9 object-contain"
+              />
               <span className="font-pixel text-sm sm:text-base text-wds-yellow">
                 &gt;_ WDS WEBSITE HUB
               </span>
