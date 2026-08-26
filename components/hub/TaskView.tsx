@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { sound } from "@/lib/soundEffects";
-import { Plus, AlertCircle, RotateCcw } from "lucide-react";
+import { Plus, AlertCircle, RotateCcw, AlertTriangle, Tag, Download } from "lucide-react";
 import { TaskItem } from "@/lib/hub/types";
 
 interface TaskViewProps {
@@ -11,13 +11,22 @@ interface TaskViewProps {
   onRetry?: () => void;
   onToggleTask: (id: string) => void;
   onOpenNewTaskModal: () => void;
+  onExportCsv?: () => void;
 }
 
-export function TaskView({ tasks, isOffline, onRetry, onToggleTask, onOpenNewTaskModal }: TaskViewProps) {
-  const [filter, setFilter] = useState<"ALL" | "TODAY" | "UPCOMING" | "COMPLETED">("ALL");
+export function TaskView({
+  tasks,
+  isOffline,
+  onRetry,
+  onToggleTask,
+  onOpenNewTaskModal,
+  onExportCsv,
+}: TaskViewProps) {
+  const [filter, setFilter] = useState<"ALL" | "MY_TASKS" | "TODAY" | "UPCOMING" | "BLOCKED" | "COMPLETED">("ALL");
 
   const filteredTasks = tasks.filter((task) => {
     if (filter === "COMPLETED") return task.status === "COMPLETED";
+    if (filter === "BLOCKED") return !!task.blockedBy && task.status !== "COMPLETED";
     if (filter === "UPCOMING" || filter === "TODAY") return task.status !== "COMPLETED";
     return true;
   });
@@ -33,17 +42,33 @@ export function TaskView({ tasks, isOffline, onRetry, onToggleTask, onOpenNewTas
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={() => {
-            sound.playClick();
-            onOpenNewTaskModal();
-          }}
-          className="px-4 py-2 border border-wds-yellow bg-wds-yellow text-wds-bg font-pixel text-xs font-bold shadow-pixel-yellow-sm hover:bg-[#fff176] flex items-center gap-2"
-        >
-          <Plus className="w-4 h-4" />
-          <span>NEW TASK</span>
-        </button>
+        <div className="flex items-center gap-2">
+          {onExportCsv && (
+            <button
+              type="button"
+              onClick={() => {
+                sound.playClick();
+                onExportCsv();
+              }}
+              className="px-3 py-2 border border-wds-yellow bg-wds-card hover:bg-wds-yellow hover:text-wds-bg text-wds-yellow font-pixel text-xs flex items-center gap-1.5 transition-colors"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span>EXPORT CSV</span>
+            </button>
+          )}
+
+          <button
+            type="button"
+            onClick={() => {
+              sound.playClick();
+              onOpenNewTaskModal();
+            }}
+            className="px-4 py-2 border border-wds-yellow bg-wds-yellow text-wds-bg font-pixel text-xs font-bold shadow-pixel-yellow-sm hover:bg-[#fff176] flex items-center gap-2"
+          >
+            <Plus className="w-4 h-4" />
+            <span>NEW TASK</span>
+          </button>
+        </div>
       </div>
 
       {/* Offline Alert */}
@@ -75,7 +100,7 @@ export function TaskView({ tasks, isOffline, onRetry, onToggleTask, onOpenNewTas
       {/* Filter Tabs Bar */}
       <div className="flex flex-wrap items-center justify-between gap-3 p-3 bg-wds-card border border-wds-yellow/40">
         <div className="flex flex-wrap gap-2">
-          {(["ALL", "TODAY", "UPCOMING", "COMPLETED"] as const).map((tab) => (
+          {(["ALL", "MY_TASKS", "TODAY", "UPCOMING", "BLOCKED", "COMPLETED"] as const).map((tab) => (
             <button
               key={tab}
               type="button"
@@ -89,7 +114,7 @@ export function TaskView({ tasks, isOffline, onRetry, onToggleTask, onOpenNewTas
                   : "text-wds-muted hover:text-wds-white border border-wds-border-dim bg-wds-bg"
               }`}
             >
-              {tab}
+              {tab.replace("_", " ")}
             </button>
           ))}
         </div>
@@ -120,14 +145,23 @@ export function TaskView({ tasks, isOffline, onRetry, onToggleTask, onOpenNewTas
                     {task.status === "COMPLETED" ? "✓" : ""}
                   </button>
                   <div>
-                    <span className="font-pixel text-[10px] text-wds-yellow mr-2">{task.id}</span>
-                    <span
-                      className={`text-sm font-bold ${
-                        task.status === "COMPLETED" ? "line-through text-wds-muted" : "text-wds-white"
-                      }`}
-                    >
-                      {task.title}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="font-pixel text-[10px] text-wds-yellow">{task.id}</span>
+                      <span
+                        className={`text-sm font-bold ${
+                          task.status === "COMPLETED" ? "line-through text-wds-muted" : "text-wds-white"
+                        }`}
+                      >
+                        {task.title}
+                      </span>
+                    </div>
+
+                    {task.blockedBy && (
+                      <div className="flex items-center gap-1 text-[11px] text-wds-red mt-1 font-mono">
+                        <AlertTriangle className="w-3 h-3" />
+                        <span>Blocked by: <strong>{task.blockedBy}</strong></span>
+                      </div>
+                    )}
                   </div>
                 </div>
 

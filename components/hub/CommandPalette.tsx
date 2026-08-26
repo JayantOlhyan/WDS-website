@@ -1,17 +1,22 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { sound } from "@/lib/soundEffects";
 import {
-  Command,
-  X,
+  Search,
   LayoutDashboard,
   CheckSquare,
   Bug,
+  Users,
   FolderArchive,
   Link2,
   Plus,
-  ExternalLink,
+  BookOpen,
+  Calendar,
+  FileText,
+  UserCheck,
+  History,
+  FolderKanban,
 } from "lucide-react";
 import { HubTab } from "@/lib/hub/types";
 
@@ -32,60 +37,167 @@ export function CommandPalette({
 }: CommandPaletteProps) {
   const [query, setQuery] = useState("");
 
+  useEffect(() => {
+    if (isOpen) setQuery("");
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
-  const items = [
-    { label: "Go to Dashboard", tab: "dashboard" as HubTab, icon: LayoutDashboard, group: "Navigation" },
-    { label: "Go to Tasks Board", tab: "tasks" as HubTab, icon: CheckSquare, group: "Navigation" },
-    { label: "Go to Bug Tracker", tab: "bugs" as HubTab, icon: Bug, group: "Navigation" },
-    { label: "Go to Recruitment '26 Pipeline", tab: "recruitment" as HubTab, icon: CheckSquare, group: "Navigation" },
-    { label: "Go to Asset Drive", tab: "assets" as HubTab, icon: FolderArchive, group: "Navigation" },
-    { label: "Go to Websites Registry", tab: "websites" as HubTab, icon: Link2, group: "Navigation" },
+  const quickActions = [
     {
-      label: "+ Create New Sprint Task",
+      label: "Create New Sprint Task",
+      category: "ACTION",
+      icon: Plus,
       action: () => {
         onClose();
         onOpenNewTaskModal();
       },
-      icon: Plus,
-      group: "Actions",
     },
     {
-      label: "+ Log Website Bug",
+      label: "Log Bug / Vulnerability",
+      category: "ACTION",
+      icon: Bug,
       action: () => {
         onClose();
         onOpenNewBugModal();
       },
-      icon: Bug,
-      group: "Actions",
     },
-    { label: "Open WDS Live Bug Hunt", href: "https://wds-bug-hunt.netlify.app/bug-hunt", icon: ExternalLink, group: "External" },
-    { label: "Open WDS Public Home", href: "/", icon: ExternalLink, group: "Navigation" },
+    {
+      label: "Go to Dashboard",
+      category: "NAVIGATION",
+      icon: LayoutDashboard,
+      action: () => {
+        onClose();
+        onSelectTab("dashboard");
+      },
+    },
+    {
+      label: "Go to Project Registry",
+      category: "NAVIGATION",
+      icon: FolderKanban,
+      action: () => {
+        onClose();
+        onSelectTab("projects");
+      },
+    },
+    {
+      label: "Go to Task Board",
+      category: "NAVIGATION",
+      icon: CheckSquare,
+      action: () => {
+        onClose();
+        onSelectTab("tasks");
+      },
+    },
+    {
+      label: "Go to Bug Tracker",
+      category: "NAVIGATION",
+      icon: Bug,
+      action: () => {
+        onClose();
+        onSelectTab("bugs");
+      },
+    },
+    {
+      label: "Go to Recruitment 2026",
+      category: "NAVIGATION",
+      icon: Users,
+      action: () => {
+        onClose();
+        onSelectTab("recruitment");
+      },
+    },
+    {
+      label: "Go to Events & Hackathons",
+      category: "NAVIGATION",
+      icon: Calendar,
+      action: () => {
+        onClose();
+        onSelectTab("events");
+      },
+    },
+    {
+      label: "Go to Editorial Content",
+      category: "NAVIGATION",
+      icon: FileText,
+      action: () => {
+        onClose();
+        onSelectTab("content");
+      },
+    },
+    {
+      label: "Go to Asset Drive",
+      category: "NAVIGATION",
+      icon: FolderArchive,
+      action: () => {
+        onClose();
+        onSelectTab("assets");
+      },
+    },
+    {
+      label: "Go to Websites & Uptime Health",
+      category: "NAVIGATION",
+      icon: Link2,
+      action: () => {
+        onClose();
+        onSelectTab("websites");
+      },
+    },
+    {
+      label: "Go to Society Members & Access",
+      category: "NAVIGATION",
+      icon: UserCheck,
+      action: () => {
+        onClose();
+        onSelectTab("members");
+      },
+    },
+    {
+      label: "Go to System Audit Log",
+      category: "NAVIGATION",
+      icon: History,
+      action: () => {
+        onClose();
+        onSelectTab("audit");
+      },
+    },
+    {
+      label: "Go to SOP & Handover Docs",
+      category: "NAVIGATION",
+      icon: BookOpen,
+      action: () => {
+        onClose();
+        onSelectTab("documentation");
+      },
+    },
   ];
 
-  const filtered = items.filter((item) =>
-    item.label.toLowerCase().includes(query.toLowerCase())
+  const filtered = quickActions.filter((item) =>
+    item.label.toLowerCase().includes(query.toLowerCase()) ||
+    item.category.toLowerCase().includes(query.toLowerCase())
   );
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-start justify-center p-4 pt-20">
-      <div className="w-full max-w-xl bg-wds-card border-2 border-wds-yellow shadow-pixel-yellow p-4 space-y-4 animate-in fade-in zoom-in-95">
-        <div className="flex items-center gap-3 pb-3 border-b border-wds-yellow/30">
-          <Command className="w-5 h-5 text-wds-yellow shrink-0" />
+    <div className="fixed inset-0 z-50 flex items-start justify-center pt-20 px-4 bg-black/80 backdrop-blur-sm animate-fade-in">
+      <div className="w-full max-w-xl bg-wds-card border-2 border-wds-yellow shadow-pixel-yellow-lg overflow-hidden flex flex-col font-mono">
+        {/* Search Input Bar */}
+        <div className="flex items-center gap-3 p-3 border-b-2 border-wds-yellow bg-wds-bg">
+          <Search className="w-4 h-4 text-wds-yellow shrink-0" />
           <input
             type="text"
             autoFocus
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Type a command or search hub views..."
-            className="w-full bg-transparent text-sm text-wds-white outline-none font-mono"
+            placeholder="Type a command or subsystem name..."
+            className="w-full bg-transparent text-sm text-wds-white placeholder-wds-muted outline-none font-mono"
           />
-          <button type="button" onClick={onClose} className="p-1 text-wds-muted hover:text-wds-white">
-            <X className="w-4 h-4" />
-          </button>
+          <kbd className="hidden sm:inline-block px-1.5 py-0.5 border border-wds-yellow text-[10px] text-wds-yellow font-pixel">
+            ESC
+          </kbd>
         </div>
 
-        <div className="max-h-72 overflow-y-auto space-y-1 text-xs font-mono">
+        {/* Results List */}
+        <div className="max-h-80 overflow-y-auto p-2 space-y-1 divide-y divide-wds-yellow/10">
           {filtered.length > 0 ? (
             filtered.map((item, idx) => {
               const Icon = item.icon;
@@ -95,38 +207,31 @@ export function CommandPalette({
                   type="button"
                   onClick={() => {
                     sound.playClick();
-                    if (item.action) {
-                      item.action();
-                    } else if (item.tab) {
-                      onSelectTab(item.tab);
-                      onClose();
-                    } else if (item.href) {
-                      window.open(item.href, "_blank");
-                      onClose();
-                    }
+                    item.action();
                   }}
-                  className="w-full p-2.5 border border-transparent hover:border-wds-yellow hover:bg-wds-yellow hover:text-wds-bg flex items-center justify-between text-left transition-colors group"
+                  className="w-full flex items-center justify-between p-2.5 hover:bg-wds-yellow hover:text-wds-bg text-left text-xs transition-colors group cursor-pointer"
                 >
-                  <div className="flex items-center gap-2.5">
+                  <div className="flex items-center gap-3">
                     <Icon className="w-4 h-4 text-wds-yellow group-hover:text-wds-bg" />
-                    <span className="font-bold">{item.label}</span>
+                    <span className="font-bold text-wds-white group-hover:text-wds-bg">{item.label}</span>
                   </div>
-                  <span className="font-pixel text-[9px] opacity-60 uppercase">{item.group}</span>
+                  <span className="text-[9px] font-pixel text-wds-muted group-hover:text-wds-bg">
+                    {item.category}
+                  </span>
                 </button>
               );
             })
           ) : (
-            <div className="text-center py-6 text-wds-muted text-xs">&gt;_ NO MATCHING COMMANDS</div>
+            <div className="p-6 text-center text-xs text-wds-muted">
+              No matching commands found.
+            </div>
           )}
         </div>
 
-        <div className="pt-2 border-t border-wds-yellow/20 flex justify-between items-center text-[10px] text-wds-muted">
-          <span>
-            Navigation: <kbd className="text-wds-yellow">↑</kbd> <kbd className="text-wds-yellow">↓</kbd>
-          </span>
-          <span>
-            Close: <kbd className="text-wds-yellow">ESC</kbd>
-          </span>
+        {/* Bottom Bar */}
+        <div className="p-2 border-t border-wds-yellow/30 bg-wds-bg flex justify-between items-center text-[10px] text-wds-muted px-3">
+          <span>WDS Operating System v2.1</span>
+          <span>Press ESC to close</span>
         </div>
       </div>
     </div>

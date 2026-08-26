@@ -132,3 +132,31 @@ export function requireRole(
 
   return authResult;
 }
+
+/**
+ * Enforces specific granular permission. Returns 403 if unauthorized.
+ */
+export function requirePermission(
+  req: NextRequest,
+  permission: import("./permissions").Permission
+): { session: ServerSession } | { response: NextResponse } {
+  const authResult = requireSession(req);
+  if ("response" in authResult) return authResult;
+
+  const { hasPermission } = require("./permissions");
+  if (!hasPermission(authResult.session.role, permission)) {
+    return {
+      response: NextResponse.json(
+        {
+          success: false,
+          error: "FORBIDDEN",
+          message: `Forbidden. Missing required permission: ${permission}`,
+        },
+        { status: 403 }
+      ),
+    };
+  }
+
+  return authResult;
+}
+

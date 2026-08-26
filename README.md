@@ -1,5 +1,5 @@
 # Web Development Society — MSIT (WDS MSIT)
-### Official Digital Ecosystem & WDS Hub Operations Platform
+### Official Digital Ecosystem & WDS Operating System (WDS OS v2.1)
 
 > **Live Production Platform**: [wds-msit.vercel.app](https://wds-msit.vercel.app)  
 > **Official Bug Hunt Platform**: [wds-bug-hunt.netlify.app/bug-hunt](https://wds-bug-hunt.netlify.app/bug-hunt)  
@@ -7,11 +7,9 @@
 
 ---
 
-## 1. System Architecture
+## 1. System Architecture & The "WDS Operating System"
 
-The WDS MSIT platform consists of two unified surfaces:
-1. **Public Website**: Modern retro-computing aesthetic featuring the society ecosystem, technical wings, project showcase, verified live opportunities, and the multi-step recruitment pipeline.
-2. **WDS Hub**: Role-based operational management system managing active sprint tasks, triage queues for bug reports, candidate screening pipelines, asset distribution, and live uptime monitoring.
+The WDS MSIT ecosystem unifies the public society identity and an internal operating system into a single cohesive platform. It replaces fragmented WhatsApp chats, scattered spreadsheets, and verbal handoffs with structured, persistent workflows.
 
 ```
                    PUBLIC USERS / STUDENTS
@@ -31,7 +29,8 @@ The WDS MSIT platform consists of two unified surfaces:
                     SERVER VALIDATION LAYER
                               │
                     REPOSITORY ABSTRACTION
-        (TaskRepo, BugRepo, RecruitmentRepo, AuditRepo)
+    (TaskRepo, BugRepo, RecruitmentRepo, ProjectRepo,
+     EventRepo, ContentRepo, MemberRepo, IncidentRepo, AuditRepo)
                               │
                               ▼
                    NOTION OPERATIONAL BACKEND
@@ -47,40 +46,60 @@ The WDS MSIT platform consists of two unified surfaces:
 
 ---
 
-## 2. Security Architecture
+## 2. Core Operating Subsystems
 
-### A. Server-Side Cryptographic Session Management
-- **Zero Base64 Cookies**: Base64 session encoding has been completely purged.
-- **Opaque Tokens**: Session IDs are generated using `crypto.randomBytes(32).toString('hex')` (256 bits of entropy) stored in a secure server session store.
-- **Cookie Security**:
-  - `HttpOnly`: Prevents access via client-side JavaScript (XSS mitigation).
-  - `Secure`: Transmitted only over HTTPS in production.
-  - `SameSite=Lax`: Defends against Cross-Site Request Forgery (CSRF).
-  - `MaxAge`: 7 days TTL with automatic background cleanup.
+### A. People & Access Governance
+- **Granular Permissions Matrix (`lib/permissions.ts`)**: 25+ fine-grained permissions (`tasks.*`, `recruitment.evaluate`, `events.manage`, `content.publish`, `audit.read`, `system.export`).
+- **Single-Use Onboarding Tokens (`/api/hub/invitations`)**: Admin-controlled invitation generator issuing single-use, 7-day TTL tokens (`wds_inv_...`) for onboarding team leads and members.
+- **Member Directory (`/api/hub/members`)**: Contributor profiles, roles, assigned wings, and status (`ACTIVE`, `SUSPENDED`, `ALUMNI`).
 
-### B. Role-Based Access Control (RBAC) Matrix
+### B. Project System (`/api/hub/projects`)
+- Centralized project registry tracking active society repositories:
+  - `WDS Main Ecosystem Website`
+  - `WDS Bug Hunt Platform`
+  - `Recruitment 2026 Pipeline`
+  - `Freshers Hub & Resource Kit`
+  - `WDS Tech Newsletter & Radar`
 
-| Role | Access Level | Permissions |
-| :--- | :--- | :--- |
-| **`ADMIN`** | Level 100 | Full access to all endpoints, task creation/updates, recruitment management, bug triage, override state transitions. |
-| **`CORE_TEAM`** | Level 80 | Recruitment lifecycle management, candidate screening & status updates, sprint tasks, bug triage. |
-| **`TEAM_LEAD`** | Level 60 | Sprint task creation & assignment, bug triage & resolution, live health check monitoring. |
-| **`MEMBER`** | Level 40 | Read operations, sprint task completion toggles, bug logging. Restricted from candidate recruitment drawer. |
+### C. Task Maturity & Concurrency
+- **Task Dependencies**: Badges indicating blocker tasks (`blockedBy`).
+- **Multi-View Sprints**: Filter by `ALL`, `MY_TASKS`, `TODAY`, `UPCOMING`, `BLOCKED`, and `COMPLETED`.
+- **Optimistic Concurrency**: Prevents lost updates using timestamp and version checking.
 
-### C. Bug Hunt Webhook HMAC SHA-256 Ingestion
-- Ingestion endpoint: `POST /api/hub/bugs/webhook`
-- Verification: Validates `x-wds-signature-256` header against `process.env.BUG_HUNT_WEBHOOK_SECRET` using `crypto.timingSafeEqual` to defend against timing attacks.
+### D. Recruitment 2026 Operations & Scorecards
+- **Multi-Stage Lifecycle**: `RECEIVED` → `SCREENING` → `SHORTLISTED` → `INTERVIEW` → `SELECTED` / `REJECTED`.
+- **Interview Scorecards**: Structured 1–5 scoring across:
+  - Technical Competence
+  - Communication & Clarity
+  - Problem Solving
+  - Team Fit & Culture
+- **Data Export**: Authorized `CORE_TEAM` and `ADMIN` roles can export candidate CSVs (`/api/hub/export?type=recruitment`).
 
-### D. Server-Side Request Forgery (SSRF) Protection
-- Health monitoring (`/api/hub/health`) is protected by `MEMBER`+ authentication.
-- Strict allowlist: `msit.in`, `wds-bug-hunt.netlify.app`, `github.com`.
-- Hard blocks: `127.0.0.0/8`, `10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`, `169.254.0.0/16` (cloud metadata IP), IPv6 loopback (`::1`), link-local ranges, and unpermitted redirects (`redirect: "error"`).
+### E. Events & Editorial Content Workflows
+- **Event Lifecycle**: `IDEA` → `PLANNING` → `ANNOUNCED` → `REGISTRATION` → `LIVE` → `COMPLETED` → `ARCHIVED`.
+- **Content Kanban**: `IDEA` → `DRAFT` → `REVIEW` → `APPROVED` → `SCHEDULED` → `PUBLISHED`.
+
+### F. Incidents & Live Website Health
+- **Incident Lifecycle**: `DETECTED` → `INVESTIGATING` → `IDENTIFIED` → `RESOLVED`.
+- **SSRF Defense**: Strict domain allowlist (`msit.in`, `wds-bug-hunt.netlify.app`, `github.com`), blocking private IPs (`10.x`, `192.168.x`, `169.254.x`), loopbacks, and redirects.
+
+### G. System Audit Log & In-App Notifications
+- **Audit Trail (`/api/hub/audit`)**: Immutable record of all member actions, candidate transitions, task mutations, and logins.
+- **In-App Notifications (`/api/hub/notifications`)**: Live event badges and dropdown alerts in the Hub header.
+
+### H. Standard Operating Procedures (SOPs) & Yearly Handover
+- Complete technical playbooks embedded in the Hub (`/hub` → Documentation):
+  - Production Deployment & CI/CD Manual
+  - Bug Hunt Webhook Triage SOP
+  - Recruitment Evaluation Guidelines
+  - Downtime & Incident Response Playbook
+  - Yearly Leadership Handover Protocol (`WDS 2026` → `WDS 2027`)
 
 ---
 
 ## 3. Environment Configuration
 
-Copy `.env.example` to `.env.local` and populate the values:
+Copy `.env.example` to `.env.local` and populate values:
 
 ```bash
 # Node Environment
@@ -104,40 +123,7 @@ BUG_HUNT_WEBHOOK_SECRET=your_hmac_shared_secret
 
 ---
 
-## 4. Expected Notion Database Schemas
-
-### 1. Recruitment Database (`NOTION_DATABASE_ID`)
-- `Full Name` (Title)
-- `Enrollment Number` (Rich Text)
-- `Branch` (Select)
-- `Section` (Rich Text)
-- `College Email` (Email)
-- `Phone` (Phone Number)
-- `Preferred Team` (Select)
-- `Experience Level` (Select)
-- `Time Commitment` (Select)
-- `Status` (Select: `RECEIVED`, `SCREENING`, `SHORTLISTED`, `INTERVIEW`, `SELECTED`, `REJECTED`)
-- `Notes` (Rich Text)
-- `Interviewer` (Rich Text)
-
-### 2. Tasks Database (`NOTION_TASKS_DATABASE_ID`)
-- `Task` (Title)
-- `Status` (Select: `PENDING`, `IN_PROGRESS`, `COMPLETED`)
-- `Priority` (Select: `HIGH`, `MEDIUM`, `LOW`)
-- `Project` (Select / Rich Text)
-- `Assignee` (Rich Text)
-- `Due Date` (Date)
-
-### 3. Bugs Database (`NOTION_BUGS_DATABASE_ID`)
-- `Title` (Title)
-- `Website` (Rich Text / URL)
-- `Severity` (Select: `CRITICAL`, `HIGH`, `MEDIUM`, `LOW`)
-- `Status` (Select: `OPEN`, `IN_PROGRESS`, `RESOLVED`)
-- `Reporter` (Rich Text)
-
----
-
-## 5. Local Development & Testing
+## 4. Local Development & Testing
 
 ```bash
 # Install dependencies
@@ -155,10 +141,10 @@ npm run build
 
 ---
 
-## 6. Continuous Integration (GitHub Actions)
+## 5. Continuous Integration (GitHub Actions)
 
 Every pull request and push to `main` triggers `.github/workflows/ci.yml`:
 1. `npm ci`
 2. `npm run lint`
-3. `npm test` (28 unit & integration test suites)
+3. `npm test` (39 automated unit & integration test suites)
 4. `npm run build`

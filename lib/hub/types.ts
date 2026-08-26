@@ -2,17 +2,18 @@ import { LucideIcon } from "lucide-react";
 
 export type HubTab =
   | "dashboard"
+  | "projects"
   | "tasks"
   | "bugs"
   | "recruitment"
-  | "content"
   | "events"
+  | "content"
   | "assets"
   | "websites"
-  | "faculty"
-  | "resources"
-  | "settings"
-  | "trash";
+  | "members"
+  | "audit"
+  | "documentation"
+  | "settings";
 
 export interface TaskItem {
   id: string;
@@ -22,6 +23,9 @@ export interface TaskItem {
   dueDate: string;
   status: "PENDING" | "IN_PROGRESS" | "COMPLETED";
   assignee: string;
+  blockedBy?: string;
+  tags?: string[];
+  updatedAt?: string;
 }
 
 export interface BugItem {
@@ -32,6 +36,8 @@ export interface BugItem {
   status: "OPEN" | "IN_PROGRESS" | "RESOLVED";
   reporter: string;
   date: string;
+  assignedTo?: string;
+  updatedAt?: string;
 }
 
 export interface AssetItem {
@@ -41,6 +47,7 @@ export interface AssetItem {
   size: string;
   format: "PNG" | "PDF" | "MD" | "SVG";
   updated: string;
+  project?: string;
 }
 
 export interface NavItemConfig {

@@ -13,6 +13,9 @@ import {
   RotateCcw,
   Mail,
   ShieldAlert,
+  Download,
+  Star,
+  CheckCircle2,
 } from "lucide-react";
 import { HubRole } from "@/lib/auth";
 
@@ -22,6 +25,7 @@ interface RecruitmentViewProps {
   userRole?: HubRole;
   onRetry?: () => void;
   onUpdateStatus: (id: string, newStatus: ApplicationStatus) => void;
+  onExportCsv?: () => void;
 }
 
 export function RecruitmentView({
@@ -30,12 +34,20 @@ export function RecruitmentView({
   userRole = "MEMBER",
   onRetry,
   onUpdateStatus,
+  onExportCsv,
 }: RecruitmentViewProps) {
   const [activeStage, setActiveStage] = useState<"ALL" | ApplicationStatus>("ALL");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCandidate, setSelectedCandidate] = useState<CandidateApplication | null>(
     applications[0] || null
   );
+
+  // Scorecard State for Interview Evaluation
+  const [techScore, setTechScore] = useState<number>(4);
+  const [commScore, setCommScore] = useState<number>(4);
+  const [problemScore, setProblemScore] = useState<number>(4);
+  const [fitScore, setFitScore] = useState<number>(5);
+  const [scorecardSubmitted, setScorecardSubmitted] = useState<boolean>(false);
 
   const canManageRecruitment = userRole === "ADMIN" || userRole === "CORE_TEAM";
 
@@ -99,18 +111,32 @@ export function RecruitmentView({
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b-2 border-wds-yellow/30">
         <div>
           <h1 className="font-pixel text-lg sm:text-xl text-wds-yellow">
-            &gt;_ RECRUITMENT 2026 PIPELINE
+            &gt;_ RECRUITMENT 2026 PIPELINE &amp; EVALUATION
           </h1>
           <p className="text-xs text-wds-muted mt-0.5">
-            Manage candidate screening, interview schedules, and final onboarding decisions.
+            Manage candidate screening, scorecards, interview decisions, and CSV export.
           </p>
         </div>
 
         <div className="flex items-center gap-3">
+          {onExportCsv && (
+            <button
+              type="button"
+              onClick={() => {
+                sound.playClick();
+                onExportCsv();
+              }}
+              className="px-3 py-2 border border-wds-yellow bg-wds-card hover:bg-wds-yellow hover:text-wds-bg text-wds-yellow font-pixel text-xs flex items-center gap-1.5 transition-colors"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span>EXPORT CSV</span>
+            </button>
+          )}
+
           <div className="p-2 border border-wds-yellow/30 bg-wds-card text-right font-mono text-xs">
-            <div className="text-[9px] text-wds-muted">&gt;_ APPLICANTS</div>
+            <div className="text-[9px] text-wds-muted">&gt;_ REGISTERED APPLICANTS</div>
             <div className="font-pixel text-[10px] text-wds-green">
-              {applications.length} REGISTERED
+              {applications.length} RECORDS
             </div>
           </div>
         </div>
@@ -122,8 +148,8 @@ export function RecruitmentView({
           <div className="flex items-center gap-2.5 text-wds-yellow">
             <AlertCircle className="w-4 h-4 shrink-0" />
             <div>
-              <span className="font-bold">Notion Recruitment Database Not Connected:</span> Connect{" "}
-              <code>NOTION_DATABASE_ID</code> to enable candidate sync.
+              <span className="font-bold">Notion Recruitment Database Offline:</span> Connect{" "}
+              <code>NOTION_DATABASE_ID</code> to sync candidates.
             </div>
           </div>
           {onRetry && (
@@ -142,7 +168,7 @@ export function RecruitmentView({
         </div>
       )}
 
-      {/* Stage Summary Cards */}
+      {/* Real Stage Metrics Bar */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 text-xs">
         {[
           { label: "RECEIVED", count: applications.filter((a) => a.status === "RECEIVED").length },
@@ -184,7 +210,7 @@ export function RecruitmentView({
         </div>
 
         <div className="flex flex-wrap gap-1.5 w-full sm:w-auto">
-          {stages.slice(0, 5).map((stage) => (
+          {stages.map((stage) => (
             <button
               key={stage.value}
               type="button"
@@ -206,8 +232,8 @@ export function RecruitmentView({
 
       {/* Candidate Pipeline Split View */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Candidate List (7 cols) */}
-        <div className="lg:col-span-7 space-y-2.5">
+        {/* Candidate List (6 cols) */}
+        <div className="lg:col-span-6 space-y-2.5">
           {filtered.length > 0 ? (
             filtered.map((candidate) => (
               <div
@@ -215,6 +241,7 @@ export function RecruitmentView({
                 onClick={() => {
                   sound.playClick();
                   setSelectedCandidate(candidate);
+                  setScorecardSubmitted(false);
                 }}
                 className={`p-4 border-2 bg-wds-card cursor-pointer transition-all ${
                   selectedCandidate?.id === candidate.id
@@ -268,14 +295,14 @@ export function RecruitmentView({
               <p className="text-xs text-wds-muted">
                 {isOffline
                   ? "Notion database connection offline. Check credentials or click retry."
-                  : "No applicant records found in database for this cycle."}
+                  : "No applicant records found in database for this view."}
               </p>
             </div>
           )}
         </div>
 
-        {/* Candidate Detail Drawer (5 cols) */}
-        <div className="lg:col-span-5">
+        {/* Candidate Detail & Scorecard Drawer (6 cols) */}
+        <div className="lg:col-span-6">
           {selectedCandidate ? (
             <div className="p-5 border-2 border-wds-yellow bg-wds-card shadow-pixel-yellow space-y-5 sticky top-16">
               <div className="flex items-center justify-between pb-3 border-b border-wds-yellow/30">
@@ -296,64 +323,103 @@ export function RecruitmentView({
                 </span>
               </div>
 
-              {/* Contact & Roll info */}
+              {/* Contact info */}
               <div className="space-y-2 text-xs">
-                <div className="p-2.5 bg-wds-bg border border-wds-yellow/20 space-y-1.5">
+                <div className="p-2.5 bg-wds-bg border border-wds-yellow/20 space-y-1">
                   <div className="flex justify-between">
                     <span className="text-wds-muted">Enrollment No:</span>
-                    <span className="font-bold text-wds-white">
-                      {selectedCandidate.enrollmentNo}
-                    </span>
+                    <span className="font-bold text-wds-white">{selectedCandidate.enrollmentNo}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-wds-muted">Branch / Section:</span>
-                    <span className="text-wds-white">
-                      {selectedCandidate.branch} ({selectedCandidate.section})
-                    </span>
+                    <span className="text-wds-white">{selectedCandidate.branch} ({selectedCandidate.section})</span>
                   </div>
                   <div className="flex items-center justify-between pt-1 border-t border-wds-yellow/10">
                     <span className="text-wds-muted flex items-center gap-1">
-                      <Mail className="w-3 h-3 text-wds-yellow" />
-                      Email:
+                      <Mail className="w-3 h-3 text-wds-yellow" /> Email:
                     </span>
-                    <a
-                      href={`mailto:${selectedCandidate.collegeEmail}`}
-                      className="text-wds-yellow hover:underline"
-                    >
+                    <a href={`mailto:${selectedCandidate.collegeEmail}`} className="text-wds-yellow hover:underline">
                       {selectedCandidate.collegeEmail}
                     </a>
                   </div>
                 </div>
               </div>
 
-              {/* Skills & Time Commitment */}
-              <div className="space-y-2 text-xs">
-                <div className="text-[10px] font-pixel text-wds-yellow">&gt;_ APPLICANT PROFILE</div>
-                <div className="space-y-1 text-xs">
+              {/* Interview Evaluation Scorecard */}
+              <div className="p-4 bg-wds-bg border-2 border-wds-yellow/40 space-y-3">
+                <div className="font-pixel text-[10px] text-wds-yellow flex items-center gap-1.5">
+                  <Star className="w-3.5 h-3.5 text-wds-yellow" />
+                  <span>&gt;_ INTERVIEW EVALUATION SCORECARD (1-5)</span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 text-xs">
                   <div>
-                    <span className="text-wds-muted">Preferred Wing: </span>
-                    <strong className="text-wds-white">{selectedCandidate.preferredTeam}</strong>
+                    <label className="text-[10px] text-wds-muted block mb-1">Technical Skills: {techScore}/5</label>
+                    <input
+                      type="range"
+                      min={1}
+                      max={5}
+                      value={techScore}
+                      onChange={(e) => setTechScore(Number(e.target.value))}
+                      className="w-full accent-wds-yellow cursor-pointer"
+                    />
                   </div>
                   <div>
-                    <span className="text-wds-muted">Experience Level: </span>
-                    <strong className="text-wds-white">{selectedCandidate.experienceLevel}</strong>
+                    <label className="text-[10px] text-wds-muted block mb-1">Communication: {commScore}/5</label>
+                    <input
+                      type="range"
+                      min={1}
+                      max={5}
+                      value={commScore}
+                      onChange={(e) => setCommScore(Number(e.target.value))}
+                      className="w-full accent-wds-yellow cursor-pointer"
+                    />
                   </div>
                   <div>
-                    <span className="text-wds-muted">Time Commitment: </span>
-                    <strong className="text-wds-white">{selectedCandidate.timeCommitment}</strong>
+                    <label className="text-[10px] text-wds-muted block mb-1">Problem Solving: {problemScore}/5</label>
+                    <input
+                      type="range"
+                      min={1}
+                      max={5}
+                      value={problemScore}
+                      onChange={(e) => setProblemScore(Number(e.target.value))}
+                      className="w-full accent-wds-yellow cursor-pointer"
+                    />
                   </div>
-                  {selectedCandidate.notes && (
-                    <div className="p-2 bg-wds-bg border border-wds-yellow/20 mt-2 text-wds-muted italic">
-                      &quot;{selectedCandidate.notes}&quot;
-                    </div>
-                  )}
+                  <div>
+                    <label className="text-[10px] text-wds-muted block mb-1">Team Fit / Culture: {fitScore}/5</label>
+                    <input
+                      type="range"
+                      min={1}
+                      max={5}
+                      value={fitScore}
+                      onChange={(e) => setFitScore(Number(e.target.value))}
+                      className="w-full accent-wds-yellow cursor-pointer"
+                    />
+                  </div>
+                </div>
+
+                <div className="pt-2 border-t border-wds-yellow/20 flex justify-between items-center text-xs">
+                  <span className="font-pixel text-[9px] text-wds-muted">
+                    Total Score: <strong className="text-wds-yellow">{techScore + commScore + problemScore + fitScore} / 20</strong>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      sound.playSuccess();
+                      setScorecardSubmitted(true);
+                    }}
+                    className="px-2.5 py-1 bg-wds-yellow text-wds-bg font-pixel text-[9px] font-bold"
+                  >
+                    {scorecardSubmitted ? "SAVED ✓" : "SAVE SCORECARD"}
+                  </button>
                 </div>
               </div>
 
               {/* Status Updater Action */}
-              <div className="pt-3 border-t border-wds-yellow/30 space-y-3">
-                <div className="text-[10px] font-pixel text-wds-yellow">&gt;_ STAGE TRANSITION</div>
-                <div className="grid grid-cols-2 gap-2 text-xs font-mono">
+              <div className="pt-2 border-t border-wds-yellow/30 space-y-2">
+                <div className="text-[10px] font-pixel text-wds-yellow">&gt;_ PIPELINE STAGE TRANSITION</div>
+                <div className="grid grid-cols-3 gap-1.5 text-xs font-mono">
                   {(["SCREENING", "SHORTLISTED", "INTERVIEW", "SELECTED", "REJECTED"] as const).map(
                     (st) => (
                       <button
@@ -364,7 +430,7 @@ export function RecruitmentView({
                           onUpdateStatus(selectedCandidate.id, st);
                           setSelectedCandidate({ ...selectedCandidate, status: st });
                         }}
-                        className={`p-2 border text-center transition-colors text-[10px] font-pixel ${
+                        className={`p-2 border text-center transition-colors text-[9px] font-pixel ${
                           selectedCandidate.status === st
                             ? "bg-wds-yellow text-wds-bg font-bold border-wds-yellow"
                             : "bg-wds-bg border-wds-border-dim text-wds-muted hover:border-wds-yellow hover:text-wds-white"
@@ -379,7 +445,7 @@ export function RecruitmentView({
             </div>
           ) : (
             <div className="p-8 text-center border-2 border-wds-yellow/30 bg-wds-card text-xs text-wds-muted">
-              Select a candidate from the list to view application details and update lifecycle stage.
+              Select a candidate from the pipeline to view application details and scorecards.
             </div>
           )}
         </div>

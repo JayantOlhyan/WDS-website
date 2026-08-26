@@ -5,22 +5,35 @@ import { sound } from "@/lib/soundEffects";
 import { HubTab, TaskItem, BugItem, AssetItem } from "@/lib/hub/types";
 import { INITIAL_HUB_ASSETS, HUB_NAV_GROUPS } from "@/lib/hub/constants";
 import { CandidateApplication, ApplicationStatus } from "@/lib/notion/recruitment";
+import { SocietyProject } from "@/lib/repositories/ProjectRepository";
+import { SocietyEvent, EventLifecycleStage } from "@/lib/repositories/EventRepository";
+import { SocietyContentItem, ContentWorkflowStage } from "@/lib/repositories/ContentRepository";
+import { SocietyMember, InvitationToken } from "@/lib/repositories/MemberRepository";
+import { AuditLogEntry } from "@/lib/repositories/types";
+import { HubRole } from "@/lib/auth";
+
 import { HubAuthGuard } from "@/components/hub/HubAuthGuard";
 import { HubHeader } from "@/components/hub/HubHeader";
 import { HubSidebar } from "@/components/hub/HubSidebar";
 import { DashboardView } from "@/components/hub/DashboardView";
+import { ProjectView } from "@/components/hub/ProjectView";
 import { TaskView } from "@/components/hub/TaskView";
 import { BugView } from "@/components/hub/BugView";
 import { RecruitmentView } from "@/components/hub/RecruitmentView";
+import { EventView } from "@/components/hub/EventView";
+import { ContentView } from "@/components/hub/ContentView";
 import { AssetView } from "@/components/hub/AssetView";
 import { WebsiteView } from "@/components/hub/WebsiteView";
+import { MemberView } from "@/components/hub/MemberView";
+import { AuditView } from "@/components/hub/AuditView";
+import { DocumentationView } from "@/components/hub/DocumentationView";
 import { CommandPalette } from "@/components/hub/CommandPalette";
 import { TaskModal } from "@/components/hub/TaskModal";
 import { BugModal } from "@/components/hub/BugModal";
 
 interface SessionData {
   username: string;
-  role: "ADMIN" | "CORE_TEAM" | "TEAM_LEAD" | "MEMBER";
+  role: HubRole;
   wing: string;
 }
 
@@ -36,7 +49,7 @@ export default function WdsHubPage() {
   const [newTaskModalOpen, setNewTaskModalOpen] = useState<boolean>(false);
   const [newBugModalOpen, setNewBugModalOpen] = useState<boolean>(false);
 
-  // Application Data States (Pure live data from database, zero fake fallbacks)
+  // Live Data States
   const [tasks, setTasks] = useState<TaskItem[]>([]);
   const [isTasksOffline, setIsTasksOffline] = useState(false);
 
@@ -46,9 +59,15 @@ export default function WdsHubPage() {
   const [applications, setApplications] = useState<CandidateApplication[]>([]);
   const [isRecruitmentOffline, setIsRecruitmentOffline] = useState(false);
 
+  const [projects, setProjects] = useState<SocietyProject[]>([]);
+  const [events, setEvents] = useState<SocietyEvent[]>([]);
+  const [contentItems, setContentItems] = useState<SocietyContentItem[]>([]);
+  const [members, setMembers] = useState<SocietyMember[]>([]);
+  const [invitations, setInvitations] = useState<InvitationToken[]>([]);
+  const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>([]);
   const [assets] = useState<AssetItem[]>(INITIAL_HUB_ASSETS);
 
-  // 1. Check Session on Mount
+  // 1. Session Check
   useEffect(() => {
     const checkSession = async () => {
       try {
@@ -66,7 +85,7 @@ export default function WdsHubPage() {
     checkSession();
   }, []);
 
-  // 2. Fetch Live Notion Database Records
+  // 2. Fetch Live Hub Subsystems
   const fetchLiveHubData = useCallback(async () => {
     if (!session) return;
 
@@ -98,6 +117,42 @@ export default function WdsHubPage() {
       setIsBugsOffline(true);
     }
 
+    // Fetch Projects
+    try {
+      const pRes = await fetch("/api/hub/projects");
+      const pData = await pRes.json();
+      if (pRes.ok && pData.success) setProjects(pData.data || []);
+    } catch {
+      // silent
+    }
+
+    // Fetch Events
+    try {
+      const eRes = await fetch("/api/hub/events");
+      const eData = await eRes.json();
+      if (eRes.ok && eData.success) setEvents(eData.data || []);
+    } catch {
+      // silent
+    }
+
+    // Fetch Content
+    try {
+      const cRes = await fetch("/api/hub/content");
+      const cData = await cRes.json();
+      if (cRes.ok && cData.success) setContentItems(cData.data || []);
+    } catch {
+      // silent
+    }
+
+    // Fetch Members
+    try {
+      const mRes = await fetch("/api/hub/members");
+      const mData = await mRes.json();
+      if (mRes.ok && mData.success) setMembers(mData.data || []);
+    } catch {
+      // silent
+    }
+
     // Fetch Recruitment Candidates (if role permits)
     if (session.role === "ADMIN" || session.role === "CORE_TEAM") {
       try {
@@ -112,6 +167,24 @@ export default function WdsHubPage() {
       } catch {
         setIsRecruitmentOffline(true);
       }
+
+      // Fetch Invitations
+      try {
+        const invRes = await fetch("/api/hub/invitations");
+        const invData = await invRes.json();
+        if (invRes.ok && invData.success) setInvitations(invData.data || []);
+      } catch {
+        // silent
+      }
+
+      // Fetch Audit Logs
+      try {
+        const aRes = await fetch("/api/hub/audit");
+        const aData = await aRes.json();
+        if (aRes.ok && aData.success) setAuditLogs(aData.data || []);
+      } catch {
+        // silent
+      }
     }
   }, [session]);
 
@@ -119,7 +192,7 @@ export default function WdsHubPage() {
     fetchLiveHubData();
   }, [fetchLiveHubData]);
 
-  // Keyboard shortcut listener for Command Palette (⌘K / Ctrl+K)
+  // Keyboard shortcut listener for Command Palette (⌘K)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === "k") {
@@ -154,7 +227,6 @@ export default function WdsHubPage() {
 
     const nextStatus = targetTask.status === "COMPLETED" ? "PENDING" : "COMPLETED";
 
-    // Optimistic UI update
     setTasks((prev) =>
       prev.map((t) => (t.id === id ? { ...t, status: nextStatus } : t))
     );
@@ -166,21 +238,18 @@ export default function WdsHubPage() {
         body: JSON.stringify({ status: nextStatus }),
       });
 
-      if (!res.ok) {
-        throw new Error("Failed to persist task update");
-      }
+      if (!res.ok) throw new Error("Failed to persist task update");
     } catch (err) {
       console.error("[Task Update Rollback]:", err);
       sound.playError();
-      setTasks(previousTasks); // Rollback
+      setTasks(previousTasks);
     }
   };
 
-  // Optimistic bug status update with persistent PATCH
+  // Optimistic bug status update
   const handleUpdateBugStatus = async (id: string, newStatus: "OPEN" | "IN_PROGRESS" | "RESOLVED") => {
     const previousBugs = [...bugs];
 
-    // Optimistic update
     setBugs((prev) =>
       prev.map((b) => (b.id === id ? { ...b, status: newStatus } : b))
     );
@@ -192,9 +261,7 @@ export default function WdsHubPage() {
         body: JSON.stringify({ status: newStatus }),
       });
 
-      if (!res.ok) {
-        throw new Error("Failed to persist bug update");
-      }
+      if (!res.ok) throw new Error("Failed to persist bug update");
     } catch (err) {
       console.error("[Bug Update Rollback]:", err);
       sound.playError();
@@ -202,11 +269,10 @@ export default function WdsHubPage() {
     }
   };
 
-  // Optimistic candidate status update with persistent PATCH
+  // Optimistic candidate status update
   const handleUpdateCandidateStatus = async (id: string, newStatus: ApplicationStatus) => {
     const previousApplications = [...applications];
 
-    // Optimistic update
     setApplications((prev) =>
       prev.map((app) => (app.id === id ? { ...app, status: newStatus } : app))
     );
@@ -218,14 +284,64 @@ export default function WdsHubPage() {
         body: JSON.stringify({ status: newStatus }),
       });
 
-      if (!res.ok) {
-        throw new Error("Failed to persist recruitment status update");
-      }
+      if (!res.ok) throw new Error("Failed to persist recruitment status update");
     } catch (err) {
       console.error("[Candidate Status Rollback]:", err);
       sound.playError();
       setApplications(previousApplications);
     }
+  };
+
+  // Event stage mutation
+  const handleUpdateEventStage = async (id: string, stage: EventLifecycleStage) => {
+    setEvents((prev) => prev.map((e) => (e.id === id ? { ...e, stage } : e)));
+    try {
+      await fetch(`/api/hub/events?id=${encodeURIComponent(id)}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ stage }),
+      });
+    } catch {
+      // silent
+    }
+  };
+
+  // Content stage mutation
+  const handleUpdateContentStage = async (id: string, stage: ContentWorkflowStage) => {
+    setContentItems((prev) => prev.map((c) => (c.id === id ? { ...c, stage } : c)));
+    try {
+      await fetch(`/api/hub/content?id=${encodeURIComponent(id)}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ stage }),
+      });
+    } catch {
+      // silent
+    }
+  };
+
+  // Generate invitation token
+  const handleCreateInvitation = async (role: HubRole, wing: string) => {
+    try {
+      const res = await fetch("/api/hub/invitations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ role, wing }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success && data.data) {
+        sound.playSuccess();
+        setInvitations((prev) => [data.data, ...prev]);
+      }
+    } catch {
+      sound.playError();
+    }
+  };
+
+  // Trigger CSV export
+  const handleExportCsv = (type: "recruitment" | "tasks" | "bugs" | "audit" | "projects") => {
+    sound.playClick();
+    window.open(`/api/hub/export?type=${type}`, "_blank");
   };
 
   const handleAddTask = async (newTask: TaskItem) => {
@@ -242,8 +358,7 @@ export default function WdsHubPage() {
       } else {
         sound.playError();
       }
-    } catch (err) {
-      console.error("[Add Task API Error]:", err);
+    } catch {
       sound.playError();
     }
   };
@@ -262,22 +377,19 @@ export default function WdsHubPage() {
       } else {
         sound.playError();
       }
-    } catch (err) {
-      console.error("[Add Bug API Error]:", err);
+    } catch {
       sound.playError();
     }
   };
 
-  // Loading indicator
   if (isAuthChecking) {
     return (
       <div className="w-full min-h-screen bg-wds-bg flex items-center justify-center font-pixel text-xs text-wds-yellow">
-        <span>&gt;_ INITIALIZING SECURE HUB ENVIRONMENT...</span>
+        <span>&gt;_ INITIALIZING SECURE WDS OPERATING SYSTEM...</span>
       </div>
     );
   }
 
-  // If unauthenticated, show retro Auth Challenge Gateway
   if (!session) {
     return <HubAuthGuard onAuthenticated={(s) => setSession(s)} />;
   }
@@ -314,7 +426,7 @@ export default function WdsHubPage() {
             <div className="flex items-center justify-between pb-4 border-b-2 border-wds-yellow">
               <div className="flex items-center gap-2">
                 <img src="/images/wds-logo.png" alt="WDS Logo" className="w-8 h-8" />
-                <span className="font-pixel text-xs text-wds-yellow">WDS_HUB_NAV.SH</span>
+                <span className="font-pixel text-xs text-wds-yellow">WDS_OS_NAV.SH</span>
               </div>
               <button
                 type="button"
@@ -380,6 +492,8 @@ export default function WdsHubPage() {
             />
           )}
 
+          {activeTab === "projects" && <ProjectView projects={projects} />}
+
           {activeTab === "tasks" && (
             <TaskView
               tasks={tasks}
@@ -387,6 +501,7 @@ export default function WdsHubPage() {
               onRetry={fetchLiveHubData}
               onToggleTask={toggleTaskStatus}
               onOpenNewTaskModal={() => setNewTaskModalOpen(true)}
+              onExportCsv={() => handleExportCsv("tasks")}
             />
           )}
 
@@ -407,6 +522,21 @@ export default function WdsHubPage() {
               userRole={session.role}
               onRetry={fetchLiveHubData}
               onUpdateStatus={handleUpdateCandidateStatus}
+              onExportCsv={() => handleExportCsv("recruitment")}
+            />
+          )}
+
+          {activeTab === "events" && (
+            <EventView
+              events={events}
+              onUpdateStage={handleUpdateEventStage}
+            />
+          )}
+
+          {activeTab === "content" && (
+            <ContentView
+              contentItems={contentItems}
+              onUpdateStage={handleUpdateContentStage}
             />
           )}
 
@@ -414,33 +544,45 @@ export default function WdsHubPage() {
 
           {activeTab === "websites" && <WebsiteView />}
 
-          {activeTab !== "dashboard" &&
-            activeTab !== "tasks" &&
-            activeTab !== "bugs" &&
-            activeTab !== "recruitment" &&
-            activeTab !== "assets" &&
-            activeTab !== "websites" && (
-              <div className="p-8 border-2 border-wds-yellow bg-wds-card text-center space-y-4 max-w-2xl mx-auto my-12">
-                <div className="font-pixel text-base text-wds-yellow">
-                  &gt;_ {activeTab.toUpperCase()} SUBSYSTEM
+          {activeTab === "members" && (
+            <MemberView
+              members={members}
+              invitations={invitations}
+              userRole={session.role}
+              onCreateInvitation={handleCreateInvitation}
+            />
+          )}
+
+          {activeTab === "audit" && (
+            <AuditView
+              logs={auditLogs}
+              onExportAudit={() => handleExportCsv("audit")}
+            />
+          )}
+
+          {activeTab === "documentation" && <DocumentationView />}
+
+          {activeTab === "settings" && (
+            <div className="p-6 border-2 border-wds-yellow bg-wds-card shadow-pixel-yellow space-y-4">
+              <div className="font-pixel text-sm text-wds-yellow pb-2 border-b border-wds-yellow/30">
+                &gt;_ SYSTEM ACCESS &amp; CREDENTIAL CONFIGURATION
+              </div>
+              <div className="text-xs text-wds-muted space-y-2 leading-relaxed">
+                <div>
+                  Active User: <strong className="text-wds-white">{session.username}</strong>
                 </div>
-                <p className="text-xs text-wds-muted leading-relaxed">
-                  This administrative module is ready for live operational sync with Notion and GitHub.
-                </p>
-                <div className="pt-4 flex justify-center gap-3">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      sound.playClick();
-                      setActiveTab("dashboard");
-                    }}
-                    className="px-4 py-2 border border-wds-yellow bg-wds-yellow text-wds-bg font-pixel text-xs font-bold"
-                  >
-                    RETURN TO DASHBOARD →
-                  </button>
+                <div>
+                  Role Clearance: <span className="text-wds-yellow font-pixel">{session.role}</span>
+                </div>
+                <div>
+                  Assigned Wing: <span className="text-wds-white">{session.wing}</span>
+                </div>
+                <div className="pt-3 border-t border-wds-yellow/20">
+                  To rotate master access keys or update Notion database bindings, modify server environment variables in Vercel or <code>.env.local</code>.
                 </div>
               </div>
-            )}
+            </div>
+          )}
         </main>
       </div>
 
