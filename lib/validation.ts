@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+export * from "./validation/index";
+
 export const ALLOWED_BRANCHES = [
   "Computer Science & Engineering (CSE)",
   "Information Technology (IT)",
@@ -143,18 +145,7 @@ export const taskCreateSchema = z.object({
 });
 export type TaskCreateInput = z.infer<typeof taskCreateSchema>;
 
-// 4. Task Update Schema
-export const taskUpdateSchema = z.object({
-  title: z.string().min(3).max(120).trim().optional(),
-  project: z.string().min(2).max(80).trim().optional(),
-  priority: z.enum(TASK_PRIORITIES).optional(),
-  assignee: z.string().max(80).trim().optional(),
-  dueDate: z.string().max(50).trim().optional(),
-  status: z.enum(TASK_STATUSES).optional(),
-});
-export type TaskUpdateInput = z.infer<typeof taskUpdateSchema>;
-
-// 5. Bug Creation Schema
+// 4. Bug Creation Schema
 export const bugCreateSchema = z.object({
   title: z.string().min(3).max(150).trim(),
   page: z.string().min(1).max(200).trim(),
@@ -163,17 +154,6 @@ export const bugCreateSchema = z.object({
   reporter: z.string().max(80).trim().default("anonymous_hunter"),
 });
 export type BugCreateInput = z.infer<typeof bugCreateSchema>;
-
-// 6. Bug Update / Triage Schema
-export const bugUpdateSchema = z.object({
-  title: z.string().min(3).max(150).trim().optional(),
-  page: z.string().min(1).max(200).trim().optional(),
-  severity: z.enum(BUG_SEVERITIES).optional(),
-  status: z.enum(BUG_STATUSES).optional(),
-  assignedTo: z.string().max(80).trim().optional(),
-  triageNotes: z.string().max(500).trim().optional(),
-});
-export type BugUpdateInput = z.infer<typeof bugUpdateSchema>;
 
 // 7. Bug Hunt Webhook Ingestion Schema
 export const bugHuntWebhookPayloadSchema = z.object({

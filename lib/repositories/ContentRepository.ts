@@ -4,7 +4,8 @@ export type ContentWorkflowStage =
   | "REVIEW"
   | "APPROVED"
   | "SCHEDULED"
-  | "PUBLISHED";
+  | "PUBLISHED"
+  | "ARCHIVED";
 
 export interface SocietyContentItem {
   id: string;

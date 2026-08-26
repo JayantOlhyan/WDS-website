@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireMinimumRole } from "@/lib/auth";
-import { bugRepository } from "@/lib/repositories/BugRepository";
-import { auditRepository } from "@/lib/repositories/AuditRepository";
+import { bugService } from "@/lib/services/bugService";
 import { bugUpdateSchema } from "@/lib/validation";
 import { createErrorResponse, generateRequestId } from "@/lib/errors";
 
@@ -32,21 +31,11 @@ export async function PATCH(
       );
     }
 
-    const updates = parseResult.data;
-    const result = await bugRepository.updateBug(bugId, updates);
+    const result = await bugService.updateBug(bugId, parseResult.data, auth.session);
 
     if (!result.success) {
       return createErrorResponse("PERSISTENCE_FAILED", "Failed to update bug in database.", 500, undefined, requestId);
     }
-
-    await auditRepository.logEvent({
-      actor: auth.session.username,
-      role: auth.session.role,
-      action: "BUG_MUTATED",
-      resource: "Bug",
-      resourceId: bugId,
-      details: { ...updates, requestId },
-    });
 
     return NextResponse.json({ success: true, data: result.data }, { status: 200, headers: { "X-Request-ID": requestId } });
   } catch (err) {

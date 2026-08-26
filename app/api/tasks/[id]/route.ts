@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireMinimumRole } from "@/lib/auth";
+import { requireSession } from "@/lib/auth";
 import { taskService } from "@/lib/services/taskService";
-import { taskUpdateSchema } from "@/lib/validation";
+import { taskUpdateSchema } from "@/lib/validation/task";
 import { createErrorResponse, generateRequestId } from "@/lib/errors";
 
 export async function PATCH(
@@ -9,7 +9,7 @@ export async function PATCH(
   { params }: { params: { id: string } }
 ) {
   const requestId = generateRequestId();
-  const auth = requireMinimumRole(req, "MEMBER");
+  const auth = requireSession(req);
   if ("response" in auth) return auth.response;
 
   const taskId = params.id;
@@ -31,16 +31,15 @@ export async function PATCH(
       );
     }
 
-    const updates = parseResult.data;
-    const result = await taskService.updateTask(taskId, updates, auth.session);
+    const result = await taskService.updateTask(taskId, parseResult.data, auth.session);
 
     if (!result.success) {
-      return createErrorResponse("PERSISTENCE_FAILED", "Failed to update task in database.", 500, undefined, requestId);
+      return createErrorResponse("PERSISTENCE_FAILED", "Failed to update task in Notion.", 500, undefined, requestId);
     }
 
     return NextResponse.json({ success: true, data: result.data }, { status: 200, headers: { "X-Request-ID": requestId } });
   } catch (err) {
-    console.error("[PATCH /api/hub/tasks/[id] Error]:", err);
-    return createErrorResponse("INTERNAL_ERROR", "Server failure while updating task.", 500, undefined, requestId);
+    console.error("[PATCH /api/tasks/[id] Error]:", err);
+    return createErrorResponse("INTERNAL_ERROR", "Server error while updating task.", 500, undefined, requestId);
   }
 }
