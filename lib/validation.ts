@@ -32,6 +32,22 @@ export const WINGS = [
   "Events & Operations Wing",
 ] as const;
 
+export const TASK_PRIORITIES = ["HIGH", "MEDIUM", "LOW"] as const;
+export const TASK_STATUSES = ["PENDING", "IN_PROGRESS", "COMPLETED"] as const;
+
+export const BUG_SEVERITIES = ["CRITICAL", "HIGH", "MEDIUM", "LOW"] as const;
+export const BUG_STATUSES = ["OPEN", "IN_PROGRESS", "RESOLVED"] as const;
+
+export const RECRUITMENT_STAGES = [
+  "RECEIVED",
+  "SCREENING",
+  "SHORTLISTED",
+  "INTERVIEW",
+  "SELECTED",
+  "REJECTED",
+] as const;
+
+// 1. Recruitment Application Submission Schema
 export const recruitmentApplicationSchema = z.object({
   fullName: z
     .string()
@@ -106,3 +122,67 @@ export const recruitmentApplicationSchema = z.object({
 });
 
 export type RecruitmentApplicationInput = z.infer<typeof recruitmentApplicationSchema>;
+
+// 2. Candidate Lifecycle Status Update Schema
+export const recruitmentStatusUpdateSchema = z.object({
+  status: z.enum(RECRUITMENT_STAGES),
+  notes: z.string().max(500).optional(),
+  interviewer: z.string().max(80).optional(),
+  interviewDate: z.string().max(80).optional(),
+});
+export type RecruitmentStatusUpdateInput = z.infer<typeof recruitmentStatusUpdateSchema>;
+
+// 3. Task Creation Schema
+export const taskCreateSchema = z.object({
+  title: z.string().min(3).max(120).trim(),
+  project: z.string().min(2).max(80).trim().default("General"),
+  priority: z.enum(TASK_PRIORITIES).default("MEDIUM"),
+  assignee: z.string().max(80).trim().default("Unassigned"),
+  dueDate: z.string().max(50).trim().default("Next Sprint"),
+  status: z.enum(TASK_STATUSES).default("PENDING"),
+});
+export type TaskCreateInput = z.infer<typeof taskCreateSchema>;
+
+// 4. Task Update Schema
+export const taskUpdateSchema = z.object({
+  title: z.string().min(3).max(120).trim().optional(),
+  project: z.string().min(2).max(80).trim().optional(),
+  priority: z.enum(TASK_PRIORITIES).optional(),
+  assignee: z.string().max(80).trim().optional(),
+  dueDate: z.string().max(50).trim().optional(),
+  status: z.enum(TASK_STATUSES).optional(),
+});
+export type TaskUpdateInput = z.infer<typeof taskUpdateSchema>;
+
+// 5. Bug Creation Schema
+export const bugCreateSchema = z.object({
+  title: z.string().min(3).max(150).trim(),
+  page: z.string().min(1).max(200).trim(),
+  severity: z.enum(BUG_SEVERITIES).default("MEDIUM"),
+  status: z.enum(BUG_STATUSES).default("OPEN"),
+  reporter: z.string().max(80).trim().default("anonymous_hunter"),
+});
+export type BugCreateInput = z.infer<typeof bugCreateSchema>;
+
+// 6. Bug Update / Triage Schema
+export const bugUpdateSchema = z.object({
+  title: z.string().min(3).max(150).trim().optional(),
+  page: z.string().min(1).max(200).trim().optional(),
+  severity: z.enum(BUG_SEVERITIES).optional(),
+  status: z.enum(BUG_STATUSES).optional(),
+  assignedTo: z.string().max(80).trim().optional(),
+  triageNotes: z.string().max(500).trim().optional(),
+});
+export type BugUpdateInput = z.infer<typeof bugUpdateSchema>;
+
+// 7. Bug Hunt Webhook Ingestion Schema
+export const bugHuntWebhookPayloadSchema = z.object({
+  bugId: z.string().min(1).max(50),
+  title: z.string().min(3).max(150).trim(),
+  website: z.string().min(1).max(200).trim(),
+  severity: z.enum(BUG_SEVERITIES).default("MEDIUM"),
+  reporterHandle: z.string().max(80).trim().default("bug_hunter"),
+  description: z.string().max(1000).optional(),
+  timestamp: z.number().optional(),
+});
+export type BugHuntWebhookPayload = z.infer<typeof bugHuntWebhookPayloadSchema>;

@@ -9,23 +9,26 @@ import {
 import {
   Users,
   Search,
-  CheckCircle,
-  Clock,
-  UserCheck,
-  Calendar,
-  ExternalLink,
-  Github,
+  AlertCircle,
+  RotateCcw,
   Mail,
-  Phone,
+  ShieldAlert,
 } from "lucide-react";
+import { HubRole } from "@/lib/auth";
 
 interface RecruitmentViewProps {
   applications: CandidateApplication[];
+  isOffline?: boolean;
+  userRole?: HubRole;
+  onRetry?: () => void;
   onUpdateStatus: (id: string, newStatus: ApplicationStatus) => void;
 }
 
 export function RecruitmentView({
   applications,
+  isOffline,
+  userRole = "MEMBER",
+  onRetry,
   onUpdateStatus,
 }: RecruitmentViewProps) {
   const [activeStage, setActiveStage] = useState<"ALL" | ApplicationStatus>("ALL");
@@ -33,6 +36,8 @@ export function RecruitmentView({
   const [selectedCandidate, setSelectedCandidate] = useState<CandidateApplication | null>(
     applications[0] || null
   );
+
+  const canManageRecruitment = userRole === "ADMIN" || userRole === "CORE_TEAM";
 
   const stages: { label: string; value: "ALL" | ApplicationStatus }[] = [
     { label: "ALL APPLICATIONS", value: "ALL" },
@@ -72,6 +77,22 @@ export function RecruitmentView({
     }
   };
 
+  if (!canManageRecruitment) {
+    return (
+      <div className="p-8 border-2 border-wds-yellow bg-wds-card text-center space-y-4 max-w-xl mx-auto my-12 shadow-pixel-yellow">
+        <div className="inline-flex p-3 border-2 border-wds-red bg-wds-red/10 text-wds-red mb-2">
+          <ShieldAlert className="w-8 h-8" />
+        </div>
+        <h2 className="font-pixel text-base text-wds-yellow">&gt;_ ACCESS RESTRICTED</h2>
+        <p className="text-xs text-wds-muted leading-relaxed">
+          Recruitment candidate records and applicant evaluation pipelines are restricted to{" "}
+          <strong className="text-wds-white">CORE_TEAM</strong> and{" "}
+          <strong className="text-wds-white">ADMIN</strong> roles for privacy compliance.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Top Header */}
@@ -94,6 +115,32 @@ export function RecruitmentView({
           </div>
         </div>
       </div>
+
+      {/* Offline Alert */}
+      {isOffline && (
+        <div className="p-4 bg-wds-card border-2 border-wds-yellow/60 shadow-pixel-yellow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs font-mono">
+          <div className="flex items-center gap-2.5 text-wds-yellow">
+            <AlertCircle className="w-4 h-4 shrink-0" />
+            <div>
+              <span className="font-bold">Notion Recruitment Database Not Connected:</span> Connect{" "}
+              <code>NOTION_DATABASE_ID</code> to enable candidate sync.
+            </div>
+          </div>
+          {onRetry && (
+            <button
+              type="button"
+              onClick={() => {
+                sound.playClick();
+                onRetry();
+              }}
+              className="px-3 py-1 bg-wds-yellow text-wds-bg font-pixel text-[10px] font-bold flex items-center gap-1 shrink-0"
+            >
+              <RotateCcw className="w-3 h-3" />
+              <span>RETRY</span>
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Stage Summary Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 text-xs">
@@ -157,7 +204,7 @@ export function RecruitmentView({
         </div>
       </div>
 
-      {/* Candidate Pipeline Split View (List + Detail Drawer) */}
+      {/* Candidate Pipeline Split View */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Candidate List (7 cols) */}
         <div className="lg:col-span-7 space-y-2.5">
@@ -179,7 +226,7 @@ export function RecruitmentView({
                   <div>
                     <div className="flex items-center gap-2">
                       <span className="font-pixel text-[10px] text-wds-yellow">
-                        {candidate.id}
+                        {candidate.id.slice(0, 10)}
                       </span>
                       <span className="font-bold text-sm text-wds-white">
                         {candidate.fullName}
@@ -215,8 +262,14 @@ export function RecruitmentView({
             ))
           ) : (
             <div className="p-8 text-center border-2 border-wds-yellow/30 bg-wds-card space-y-2">
-              <div className="font-pixel text-xs text-wds-yellow">&gt;_ NO APPLICANTS IN THIS VIEW</div>
-              <p className="text-xs text-wds-muted">Try adjusting your filter or search query.</p>
+              <div className="font-pixel text-xs text-wds-yellow">
+                {isOffline ? "&gt;_ DATABASE TEMPORARILY OFFLINE" : "&gt;_ NO APPLICANTS FOUND"}
+              </div>
+              <p className="text-xs text-wds-muted">
+                {isOffline
+                  ? "Notion database connection offline. Check credentials or click retry."
+                  : "No applicant records found in database for this cycle."}
+              </p>
             </div>
           )}
         </div>
@@ -228,7 +281,7 @@ export function RecruitmentView({
               <div className="flex items-center justify-between pb-3 border-b border-wds-yellow/30">
                 <div>
                   <span className="font-pixel text-[9px] text-wds-yellow">
-                    {selectedCandidate.id}
+                    {selectedCandidate.id.slice(0, 10)}
                   </span>
                   <h3 className="font-pixel text-base text-wds-white">
                     {selectedCandidate.fullName}
@@ -297,7 +350,7 @@ export function RecruitmentView({
                 </div>
               </div>
 
-              {/* Interview & Status Updater Action */}
+              {/* Status Updater Action */}
               <div className="pt-3 border-t border-wds-yellow/30 space-y-3">
                 <div className="text-[10px] font-pixel text-wds-yellow">&gt;_ STAGE TRANSITION</div>
                 <div className="grid grid-cols-2 gap-2 text-xs font-mono">

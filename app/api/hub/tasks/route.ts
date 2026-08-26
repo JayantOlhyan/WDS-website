@@ -1,40 +1,68 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getHubSessionFromRequest, hasRequiredRole } from "@/lib/auth";
-import { fetchNotionTasks, createNotionTask } from "@/lib/notion/tasks";
-import { TaskItem } from "@/lib/hub/types";
+import { requireSession, requireMinimumRole } from "@/lib/auth";
+import { taskRepository } from "@/lib/repositories/TaskRepository";
+import { auditRepository } from "@/lib/repositories/AuditRepository";
+import { taskCreateSchema } from "@/lib/validation";
 
 export async function GET(req: NextRequest) {
-  const session = getHubSessionFromRequest(req);
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized. Hub session required." }, { status: 401 });
+  const auth = requireSession(req);
+  if ("response" in auth) return auth.response;
+
+  const result = await taskRepository.getTasks();
+  if (!result.success && result.isOffline) {
+    return NextResponse.json(
+      { success: false, data: [], code: "DATABASE_OFFLINE", message: "Tasks database is offline or not configured." },
+      { status: 503 }
+    );
   }
 
-  const { tasks, source } = await fetchNotionTasks();
-  return NextResponse.json({ success: true, tasks, source }, { status: 200 });
+  return NextResponse.json({ success: true, data: result.data }, { status: 200 });
 }
 
 export async function POST(req: NextRequest) {
-  const session = getHubSessionFromRequest(req);
-  if (!session || !hasRequiredRole(session, "TEAM_LEAD")) {
-    return NextResponse.json(
-      { error: "Forbidden. Insufficient role permissions to create tasks." },
-      { status: 403 }
-    );
-  }
+  const auth = requireMinimumRole(req, "TEAM_LEAD");
+  if ("response" in auth) return auth.response;
 
   try {
-    const body = (await req.json()) as TaskItem;
-    if (!body.title) {
-      return NextResponse.json({ error: "Task title is required." }, { status: 400 });
+    const rawBody = await req.json();
+    const parseResult = taskCreateSchema.safeParse(rawBody);
+
+    if (!parseResult.success) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "VALIDATION_ERROR",
+          details: parseResult.error.issues.map((i) => ({ field: i.path.join("."), message: i.message })),
+        },
+        { status: 400 }
+      );
     }
 
-    const created = await createNotionTask(body);
-    return NextResponse.json(
-      { success: true, persistedToNotion: created, task: body },
-      { status: 201 }
-    );
-  } catch (err: unknown) {
-    console.error("[Hub Tasks POST Error]:", err);
-    return NextResponse.json({ error: "Failed to process task." }, { status: 500 });
+    const taskData = parseResult.data;
+    const result = await taskRepository.createTask({
+      id: `TSK-${Date.now()}`,
+      ...taskData,
+    });
+
+    if (!result.success) {
+      return NextResponse.json(
+        { success: false, error: "PERSISTENCE_FAILED", message: "Failed to persist task to database." },
+        { status: 500 }
+      );
+    }
+
+    await auditRepository.logEvent({
+      actor: auth.session.username,
+      role: auth.session.role,
+      action: "TASK_CREATED",
+      resource: "Task",
+      resourceId: result.data.id,
+      details: { title: result.data.title, project: result.data.project },
+    });
+
+    return NextResponse.json({ success: true, data: result.data }, { status: 201 });
+  } catch (err) {
+    console.error("[POST /api/hub/tasks Error]:", err);
+    return NextResponse.json({ success: false, error: "INTERNAL_ERROR" }, { status: 500 });
   }
 }

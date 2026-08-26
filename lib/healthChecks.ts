@@ -7,12 +7,11 @@ export interface SiteHealthResult {
   lastChecked: string;
 }
 
-// Strict whitelist of permitted domains to prevent Server-Side Request Forgery (SSRF)
+// Strict allowlist of permitted external domains to prevent Server-Side Request Forgery (SSRF)
 export const ALLOWED_HEALTH_CHECK_DOMAINS = [
   "msit.in",
   "wds-bug-hunt.netlify.app",
   "github.com",
-  "localhost",
 ];
 
 export const MONITORED_SITES = [
@@ -23,12 +22,42 @@ export const MONITORED_SITES = [
   { name: "Freshers Hub", url: "/projects#freshers-hub", isLive: false },
 ];
 
+/**
+ * Validates whether a target URL is in the strict allowlist and not pointing to private/internal IPs
+ */
 export function isUrlAllowedForHealthCheck(targetUrl: string): boolean {
   try {
-    if (targetUrl.startsWith("/")) return true; // Relative internal path
+    if (!targetUrl || typeof targetUrl !== "string") return false;
+
+    // Internal relative site paths are safe
+    if (targetUrl.startsWith("/")) return true;
+
     const parsed = new URL(targetUrl);
+
+    // Only allow HTTP/HTTPS
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+      return false;
+    }
+
+    const hostname = parsed.hostname.toLowerCase();
+
+    // Block localhost, IP literals, loopbacks, and private ranges
+    if (
+      hostname === "localhost" ||
+      hostname === "127.0.0.1" ||
+      hostname === "::1" ||
+      hostname === "0.0.0.0" ||
+      hostname.startsWith("10.") ||
+      hostname.startsWith("192.168.") ||
+      hostname.startsWith("169.254.") || // Cloud metadata IP
+      /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(hostname)
+    ) {
+      return false;
+    }
+
+    // Must match allowed domain suffix
     return ALLOWED_HEALTH_CHECK_DOMAINS.some(
-      (domain) => parsed.hostname === domain || parsed.hostname.endsWith(`.${domain}`)
+      (domain) => hostname === domain || hostname.endsWith(`.${domain}`)
     );
   } catch {
     return false;
@@ -48,12 +77,12 @@ export async function checkSiteHealth(url: string): Promise<{
     };
   }
 
-  // If internal relative route, treat as healthy local route
+  // If internal relative route, return simulated local benchmark
   if (url.startsWith("/")) {
     return {
       isUp: true,
       statusCode: 200,
-      durationMs: 12,
+      durationMs: 8,
     };
   }
 
@@ -64,7 +93,8 @@ export async function checkSiteHealth(url: string): Promise<{
     const res = await fetch(url, {
       method: "GET",
       signal: controller.signal,
-      headers: { "User-Agent": "WDS-HealthCheck/1.0" },
+      redirect: "error", // Prevent open redirects to unauthorized internal destinations
+      headers: { "User-Agent": "WDS-HealthCheck/2.0" },
     });
     clearTimeout(timeoutId);
     const duration = Date.now() - start;

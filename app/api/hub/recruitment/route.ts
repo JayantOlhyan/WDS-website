@@ -1,16 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getHubSessionFromRequest, hasRequiredRole } from "@/lib/auth";
-import { fetchRecruitmentApplications } from "@/lib/notion/recruitment";
+import { requireMinimumRole } from "@/lib/auth";
+import { recruitmentRepository } from "@/lib/repositories/RecruitmentRepository";
 
 export async function GET(req: NextRequest) {
-  const session = getHubSessionFromRequest(req);
-  if (!session || !hasRequiredRole(session, "CORE_TEAM")) {
+  const auth = requireMinimumRole(req, "CORE_TEAM");
+  if ("response" in auth) return auth.response;
+
+  const result = await recruitmentRepository.getApplications();
+  if (!result.success && result.isOffline) {
     return NextResponse.json(
-      { error: "Forbidden. Core Team or Admin role required to view candidate records." },
-      { status: 403 }
+      { success: false, data: [], code: "DATABASE_OFFLINE", message: "Recruitment database is offline or not configured." },
+      { status: 503 }
     );
   }
 
-  const { applications, source } = await fetchRecruitmentApplications();
-  return NextResponse.json({ success: true, applications, source }, { status: 200 });
+  return NextResponse.json({ success: true, data: result.data }, { status: 200 });
 }

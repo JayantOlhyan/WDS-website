@@ -1,20 +1,10 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { sound } from "@/lib/soundEffects";
 import { HubTab, TaskItem, BugItem, AssetItem } from "@/lib/hub/types";
-import {
-  INITIAL_HUB_TASKS,
-  INITIAL_HUB_BUGS,
-  INITIAL_HUB_ASSETS,
-  HUB_NAV_GROUPS,
-} from "@/lib/hub/constants";
-import {
-  CandidateApplication,
-  INITIAL_RECRUITMENT_APPLICATIONS,
-  ApplicationStatus,
-} from "@/lib/notion/recruitment";
-import { HubUserSession } from "@/lib/auth";
+import { INITIAL_HUB_ASSETS, HUB_NAV_GROUPS } from "@/lib/hub/constants";
+import { CandidateApplication, ApplicationStatus } from "@/lib/notion/recruitment";
 import { HubAuthGuard } from "@/components/hub/HubAuthGuard";
 import { HubHeader } from "@/components/hub/HubHeader";
 import { HubSidebar } from "@/components/hub/HubSidebar";
@@ -28,8 +18,14 @@ import { CommandPalette } from "@/components/hub/CommandPalette";
 import { TaskModal } from "@/components/hub/TaskModal";
 import { BugModal } from "@/components/hub/BugModal";
 
+interface SessionData {
+  username: string;
+  role: "ADMIN" | "CORE_TEAM" | "TEAM_LEAD" | "MEMBER";
+  wing: string;
+}
+
 export default function WdsHubPage() {
-  const [session, setSession] = useState<HubUserSession | null>(null);
+  const [session, setSession] = useState<SessionData | null>(null);
   const [isAuthChecking, setIsAuthChecking] = useState<boolean>(true);
 
   const [activeTab, setActiveTab] = useState<HubTab>("dashboard");
@@ -40,12 +36,16 @@ export default function WdsHubPage() {
   const [newTaskModalOpen, setNewTaskModalOpen] = useState<boolean>(false);
   const [newBugModalOpen, setNewBugModalOpen] = useState<boolean>(false);
 
-  // Application State
-  const [tasks, setTasks] = useState<TaskItem[]>(INITIAL_HUB_TASKS);
-  const [bugs, setBugs] = useState<BugItem[]>(INITIAL_HUB_BUGS);
-  const [applications, setApplications] = useState<CandidateApplication[]>(
-    INITIAL_RECRUITMENT_APPLICATIONS
-  );
+  // Application Data States (Pure live data from database, zero fake fallbacks)
+  const [tasks, setTasks] = useState<TaskItem[]>([]);
+  const [isTasksOffline, setIsTasksOffline] = useState(false);
+
+  const [bugs, setBugs] = useState<BugItem[]>([]);
+  const [isBugsOffline, setIsBugsOffline] = useState(false);
+
+  const [applications, setApplications] = useState<CandidateApplication[]>([]);
+  const [isRecruitmentOffline, setIsRecruitmentOffline] = useState(false);
+
   const [assets] = useState<AssetItem[]>(INITIAL_HUB_ASSETS);
 
   // 1. Check Session on Mount
@@ -66,47 +66,58 @@ export default function WdsHubPage() {
     checkSession();
   }, []);
 
-  // 2. Fetch Live Notion / Database Records once Authenticated
-  useEffect(() => {
+  // 2. Fetch Live Notion Database Records
+  const fetchLiveHubData = useCallback(async () => {
     if (!session) return;
 
-    const fetchLiveHubData = async () => {
-      // Fetch Tasks
-      try {
-        const tRes = await fetch("/api/hub/tasks");
-        const tData = await tRes.json();
-        if (tRes.ok && tData.success && tData.tasks?.length > 0) {
-          setTasks(tData.tasks);
-        }
-      } catch (err) {
-        console.warn("[Hub Tasks Fetch Error]:", err);
+    // Fetch Tasks
+    try {
+      const tRes = await fetch("/api/hub/tasks");
+      const tData = await tRes.json();
+      if (tRes.ok && tData.success) {
+        setTasks(tData.data || []);
+        setIsTasksOffline(false);
+      } else {
+        setIsTasksOffline(true);
       }
+    } catch {
+      setIsTasksOffline(true);
+    }
 
-      // Fetch Bugs
-      try {
-        const bRes = await fetch("/api/hub/bugs");
-        const bData = await bRes.json();
-        if (bRes.ok && bData.success && bData.bugs?.length > 0) {
-          setBugs(bData.bugs);
-        }
-      } catch (err) {
-        console.warn("[Hub Bugs Fetch Error]:", err);
+    // Fetch Bugs
+    try {
+      const bRes = await fetch("/api/hub/bugs");
+      const bData = await bRes.json();
+      if (bRes.ok && bData.success) {
+        setBugs(bData.data || []);
+        setIsBugsOffline(false);
+      } else {
+        setIsBugsOffline(true);
       }
+    } catch {
+      setIsBugsOffline(true);
+    }
 
-      // Fetch Recruitment Candidates
+    // Fetch Recruitment Candidates (if role permits)
+    if (session.role === "ADMIN" || session.role === "CORE_TEAM") {
       try {
         const rRes = await fetch("/api/hub/recruitment");
         const rData = await rRes.json();
-        if (rRes.ok && rData.success && rData.applications?.length > 0) {
-          setApplications(rData.applications);
+        if (rRes.ok && rData.success) {
+          setApplications(rData.data || []);
+          setIsRecruitmentOffline(false);
+        } else {
+          setIsRecruitmentOffline(true);
         }
-      } catch (err) {
-        console.warn("[Hub Recruitment Fetch Error]:", err);
+      } catch {
+        setIsRecruitmentOffline(true);
       }
-    };
-
-    fetchLiveHubData();
+    }
   }, [session]);
+
+  useEffect(() => {
+    fetchLiveHubData();
+  }, [fetchLiveHubData]);
 
   // Keyboard shortcut listener for Command Palette (⌘K / Ctrl+K)
   useEffect(() => {
@@ -135,52 +146,129 @@ export default function WdsHubPage() {
     setSession(null);
   };
 
-  const toggleTaskStatus = (id: string) => {
-    sound.playClick();
+  // Optimistic task toggling with persistent PATCH
+  const toggleTaskStatus = async (id: string) => {
+    const previousTasks = [...tasks];
+    const targetTask = tasks.find((t) => t.id === id);
+    if (!targetTask) return;
+
+    const nextStatus = targetTask.status === "COMPLETED" ? "PENDING" : "COMPLETED";
+
+    // Optimistic UI update
     setTasks((prev) =>
-      prev.map((t) => {
-        if (t.id === id) {
-          const nextStatus = t.status === "COMPLETED" ? "PENDING" : "COMPLETED";
-          return { ...t, status: nextStatus };
-        }
-        return t;
-      })
+      prev.map((t) => (t.id === id ? { ...t, status: nextStatus } : t))
     );
+
+    try {
+      const res = await fetch(`/api/hub/tasks/${encodeURIComponent(id)}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: nextStatus }),
+      });
+
+      if (!res.ok) {
+        throw new Error("Failed to persist task update");
+      }
+    } catch (err) {
+      console.error("[Task Update Rollback]:", err);
+      sound.playError();
+      setTasks(previousTasks); // Rollback
+    }
+  };
+
+  // Optimistic bug status update with persistent PATCH
+  const handleUpdateBugStatus = async (id: string, newStatus: "OPEN" | "IN_PROGRESS" | "RESOLVED") => {
+    const previousBugs = [...bugs];
+
+    // Optimistic update
+    setBugs((prev) =>
+      prev.map((b) => (b.id === id ? { ...b, status: newStatus } : b))
+    );
+
+    try {
+      const res = await fetch(`/api/hub/bugs/${encodeURIComponent(id)}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: newStatus }),
+      });
+
+      if (!res.ok) {
+        throw new Error("Failed to persist bug update");
+      }
+    } catch (err) {
+      console.error("[Bug Update Rollback]:", err);
+      sound.playError();
+      setBugs(previousBugs);
+    }
+  };
+
+  // Optimistic candidate status update with persistent PATCH
+  const handleUpdateCandidateStatus = async (id: string, newStatus: ApplicationStatus) => {
+    const previousApplications = [...applications];
+
+    // Optimistic update
+    setApplications((prev) =>
+      prev.map((app) => (app.id === id ? { ...app, status: newStatus } : app))
+    );
+
+    try {
+      const res = await fetch(`/api/hub/recruitment/${encodeURIComponent(id)}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: newStatus }),
+      });
+
+      if (!res.ok) {
+        throw new Error("Failed to persist recruitment status update");
+      }
+    } catch (err) {
+      console.error("[Candidate Status Rollback]:", err);
+      sound.playError();
+      setApplications(previousApplications);
+    }
   };
 
   const handleAddTask = async (newTask: TaskItem) => {
-    setTasks((prev) => [newTask, ...prev]);
     try {
-      await fetch("/api/hub/tasks", {
+      const res = await fetch("/api/hub/tasks", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(newTask),
       });
+
+      const data = await res.json();
+      if (res.ok && data.success && data.data) {
+        setTasks((prev) => [data.data, ...prev]);
+      } else {
+        sound.playError();
+      }
     } catch (err) {
-      console.warn("[Add Task API Error]:", err);
+      console.error("[Add Task API Error]:", err);
+      sound.playError();
     }
   };
 
   const handleAddBug = async (newBug: BugItem) => {
-    setBugs((prev) => [newBug, ...prev]);
     try {
-      await fetch("/api/hub/bugs", {
+      const res = await fetch("/api/hub/bugs", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(newBug),
       });
+
+      const data = await res.json();
+      if (res.ok && data.success && data.data) {
+        setBugs((prev) => [data.data, ...prev]);
+      } else {
+        sound.playError();
+      }
     } catch (err) {
-      console.warn("[Add Bug API Error]:", err);
+      console.error("[Add Bug API Error]:", err);
+      sound.playError();
     }
   };
 
-  const handleUpdateCandidateStatus = (id: string, newStatus: ApplicationStatus) => {
-    setApplications((prev) =>
-      prev.map((app) => (app.id === id ? { ...app, status: newStatus } : app))
-    );
-  };
-
-  // Auth checking skeleton
+  // Loading indicator
   if (isAuthChecking) {
     return (
       <div className="w-full min-h-screen bg-wds-bg flex items-center justify-center font-pixel text-xs text-wds-yellow">
@@ -267,9 +355,6 @@ export default function WdsHubPage() {
                             <Icon className="w-4 h-4" />
                             <span>{item.label}</span>
                           </div>
-                          {item.count && (
-                            <span className="font-pixel text-[9px] opacity-80">{item.count}</span>
-                          )}
                         </button>
                       );
                     })}
@@ -285,6 +370,10 @@ export default function WdsHubPage() {
           {activeTab === "dashboard" && (
             <DashboardView
               tasks={tasks}
+              bugs={bugs}
+              isTasksOffline={isTasksOffline}
+              isBugsOffline={isBugsOffline}
+              onRetry={fetchLiveHubData}
               onToggleTask={toggleTaskStatus}
               onNavigateTab={(tab) => setActiveTab(tab)}
               onOpenNewTaskModal={() => setNewTaskModalOpen(true)}
@@ -294,6 +383,8 @@ export default function WdsHubPage() {
           {activeTab === "tasks" && (
             <TaskView
               tasks={tasks}
+              isOffline={isTasksOffline}
+              onRetry={fetchLiveHubData}
               onToggleTask={toggleTaskStatus}
               onOpenNewTaskModal={() => setNewTaskModalOpen(true)}
             />
@@ -302,6 +393,9 @@ export default function WdsHubPage() {
           {activeTab === "bugs" && (
             <BugView
               bugs={bugs}
+              isOffline={isBugsOffline}
+              onRetry={fetchLiveHubData}
+              onUpdateBugStatus={handleUpdateBugStatus}
               onOpenNewBugModal={() => setNewBugModalOpen(true)}
             />
           )}
@@ -309,6 +403,9 @@ export default function WdsHubPage() {
           {activeTab === "recruitment" && (
             <RecruitmentView
               applications={applications}
+              isOffline={isRecruitmentOffline}
+              userRole={session.role}
+              onRetry={fetchLiveHubData}
               onUpdateStatus={handleUpdateCandidateStatus}
             />
           )}

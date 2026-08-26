@@ -3,11 +3,15 @@
 import React from "react";
 import Link from "next/link";
 import { sound } from "@/lib/soundEffects";
-import { CheckSquare, FolderArchive, Bug, ArrowRight, Plus } from "lucide-react";
-import { TaskItem, HubTab } from "@/lib/hub/types";
+import { CheckSquare, Bug, ArrowRight, Plus, AlertCircle, RotateCcw } from "lucide-react";
+import { TaskItem, BugItem, HubTab } from "@/lib/hub/types";
 
 interface DashboardViewProps {
   tasks: TaskItem[];
+  bugs: BugItem[];
+  isTasksOffline?: boolean;
+  isBugsOffline?: boolean;
+  onRetry?: () => void;
   onToggleTask: (id: string) => void;
   onNavigateTab: (tab: HubTab) => void;
   onOpenNewTaskModal: () => void;
@@ -15,6 +19,10 @@ interface DashboardViewProps {
 
 export function DashboardView({
   tasks,
+  bugs,
+  isTasksOffline,
+  isBugsOffline,
+  onRetry,
   onToggleTask,
   onNavigateTab,
   onOpenNewTaskModal,
@@ -22,7 +30,8 @@ export function DashboardView({
   const completedCount = tasks.filter((t) => t.status === "COMPLETED").length;
   const inProgressCount = tasks.filter((t) => t.status === "IN_PROGRESS").length;
   const pendingCount = tasks.filter((t) => t.status === "PENDING").length;
-  const progressPercent = Math.round((completedCount / tasks.length) * 100) || 0;
+  const progressPercent = tasks.length > 0 ? Math.round((completedCount / tasks.length) * 100) : 0;
+  const openBugsCount = bugs.filter((b) => b.status === "OPEN" || b.status === "IN_PROGRESS").length;
 
   return (
     <div className="space-y-6">
@@ -46,15 +55,41 @@ export function DashboardView({
         </div>
       </div>
 
+      {/* Database Offline Warning Banner if Notion is unconfigured */}
+      {(isTasksOffline || isBugsOffline) && (
+        <div className="p-4 bg-wds-card border-2 border-wds-yellow/60 shadow-pixel-yellow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs font-mono">
+          <div className="flex items-center gap-2.5 text-wds-yellow">
+            <AlertCircle className="w-4 h-4 shrink-0" />
+            <div>
+              <span className="font-bold">Notion Operational Backend Not Connected:</span> Configure{" "}
+              <code>NOTION_API_KEY</code> &amp; Database IDs in <code>.env.local</code> to sync live data.
+            </div>
+          </div>
+          {onRetry && (
+            <button
+              type="button"
+              onClick={() => {
+                sound.playClick();
+                onRetry();
+              }}
+              className="px-3 py-1 bg-wds-yellow text-wds-bg font-pixel text-[10px] font-bold flex items-center gap-1 shrink-0"
+            >
+              <RotateCcw className="w-3 h-3" />
+              <span>RETRY SYNC</span>
+            </button>
+          )}
+        </div>
+      )}
+
       {/* Prioritized KPI Summary Grid */}
       <div className="space-y-2">
         <div className="text-[10px] font-pixel text-wds-muted">&gt;_ SPRINT METRICS</div>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {[
-            { label: "SPRINT TASKS", val: String(tasks.length), sub: "Total scope", color: "text-wds-yellow", border: "border-wds-yellow" },
-            { label: "PENDING", val: String(pendingCount), sub: "In backlog", color: "text-wds-yellow", border: "border-wds-yellow/60" },
-            { label: "COMPLETED", val: String(completedCount), sub: "Verified & shipped", color: "text-wds-green", border: "border-wds-green/60" },
-            { label: "OPEN BUGS", val: "2", sub: "Under triage", color: "text-wds-yellow", border: "border-wds-yellow/60" },
+            { label: "SPRINT TASKS", val: String(tasks.length), sub: isTasksOffline ? "Offline" : "Total scope", color: "text-wds-yellow", border: "border-wds-yellow" },
+            { label: "PENDING", val: String(pendingCount), sub: isTasksOffline ? "Offline" : "In backlog", color: "text-wds-yellow", border: "border-wds-yellow/60" },
+            { label: "COMPLETED", val: String(completedCount), sub: isTasksOffline ? "Offline" : "Verified & shipped", color: "text-wds-green", border: "border-wds-green/60" },
+            { label: "OPEN BUGS", val: String(openBugsCount), sub: isBugsOffline ? "Offline" : "Under triage", color: "text-wds-yellow", border: "border-wds-yellow/60" },
           ].map((stat, idx) => (
             <div
               key={idx}
@@ -109,7 +144,7 @@ export function DashboardView({
                 <div className="h-2 bg-wds-bg border border-wds-yellow/30">
                   <div
                     className="h-full bg-wds-yellow transition-all duration-300"
-                    style={{ width: `${Math.round((inProgressCount / tasks.length) * 100)}%` }}
+                    style={{ width: `${tasks.length > 0 ? Math.round((inProgressCount / tasks.length) * 100) : 0}%` }}
                   />
                 </div>
               </div>
@@ -122,7 +157,7 @@ export function DashboardView({
                 <div className="h-2 bg-wds-bg border border-wds-yellow/30">
                   <div
                     className="h-full bg-wds-muted transition-all duration-300"
-                    style={{ width: `${Math.round((pendingCount / tasks.length) * 100)}%` }}
+                    style={{ width: `${tasks.length > 0 ? Math.round((pendingCount / tasks.length) * 100) : 0}%` }}
                   />
                 </div>
               </div>
@@ -130,11 +165,11 @@ export function DashboardView({
           </div>
 
           <div className="pt-2 border-t border-wds-yellow/20 flex justify-between items-center text-[10px] text-wds-muted">
-            <span>Sprint: WDS Ecosystem QA &amp; Launch</span>
+            <span>Sprint: WDS Ecosystem Operations</span>
             <button
               type="button"
               onClick={() => onNavigateTab("tasks")}
-              className="text-wds-yellow hover:underline"
+              className="text-wds-yellow hover:underline font-bold"
             >
               OPEN TASKS BOARD →
             </button>
@@ -148,61 +183,74 @@ export function DashboardView({
             <button
               type="button"
               onClick={() => onNavigateTab("tasks")}
-              className="text-[9px] text-wds-yellow hover:underline"
+              className="text-[9px] text-wds-yellow hover:underline font-bold"
             >
               VIEW ALL ({tasks.length}) →
             </button>
           </div>
 
           <div className="space-y-2.5">
-            {tasks.slice(0, 4).map((task) => (
-              <div
-                key={task.id}
-                onClick={() => onToggleTask(task.id)}
-                className="p-3 border border-wds-border-dim bg-wds-bg hover:border-wds-yellow flex items-center justify-between gap-3 text-xs cursor-pointer select-none transition-colors"
-              >
-                <div className="flex items-center gap-3 truncate">
-                  <div
-                    className={`w-4 h-4 border flex items-center justify-center text-[10px] shrink-0 ${
-                      task.status === "COMPLETED"
-                        ? "border-wds-green bg-wds-green text-wds-bg font-bold"
-                        : "border-wds-yellow bg-wds-bg"
-                    }`}
-                  >
-                    {task.status === "COMPLETED" ? "✓" : ""}
-                  </div>
-                  <div className="truncate">
-                    <span
-                      className={
+            {tasks.length > 0 ? (
+              tasks.slice(0, 4).map((task) => (
+                <div
+                  key={task.id}
+                  onClick={() => onToggleTask(task.id)}
+                  className="p-3 border border-wds-border-dim bg-wds-bg hover:border-wds-yellow flex items-center justify-between gap-3 text-xs cursor-pointer select-none transition-colors"
+                >
+                  <div className="flex items-center gap-3 truncate">
+                    <div
+                      className={`w-4 h-4 border flex items-center justify-center text-[10px] shrink-0 ${
                         task.status === "COMPLETED"
-                          ? "line-through text-wds-muted"
-                          : "text-wds-white font-bold"
-                      }
+                          ? "border-wds-green bg-wds-green text-wds-bg font-bold"
+                          : "border-wds-yellow bg-wds-bg"
+                      }`}
                     >
-                      {task.title}
-                    </span>
-                    <div className="text-[10px] text-wds-muted flex items-center gap-2 mt-0.5">
-                      <span>{task.project}</span>
-                      <span>•</span>
-                      <span>Assignee: {task.assignee}</span>
+                      {task.status === "COMPLETED" ? "✓" : ""}
+                    </div>
+                    <div className="truncate">
+                      <span
+                        className={
+                          task.status === "COMPLETED"
+                            ? "line-through text-wds-muted"
+                            : "text-wds-white font-bold"
+                        }
+                      >
+                        {task.title}
+                      </span>
+                      <div className="text-[10px] text-wds-muted flex items-center gap-2 mt-0.5">
+                        <span>{task.project}</span>
+                        <span>•</span>
+                        <span>Assignee: {task.assignee}</span>
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                <div className="flex items-center gap-2 shrink-0 text-[10px]">
-                  <span
-                    className={`px-1.5 py-0.5 font-pixel ${
-                      task.priority === "HIGH"
-                        ? "border border-wds-yellow bg-wds-yellow/10 text-wds-yellow"
-                        : "border border-wds-border-dim text-wds-muted"
-                    }`}
-                  >
-                    {task.priority}
-                  </span>
-                  <span className="text-wds-muted hidden sm:inline">{task.dueDate}</span>
+                  <div className="flex items-center gap-2 shrink-0 text-[10px]">
+                    <span
+                      className={`px-1.5 py-0.5 font-pixel ${
+                        task.priority === "HIGH"
+                          ? "border border-wds-yellow bg-wds-yellow/10 text-wds-yellow"
+                          : "border border-wds-border-dim text-wds-muted"
+                      }`}
+                    >
+                      {task.priority}
+                    </span>
+                    <span className="text-wds-muted hidden sm:inline">{task.dueDate}</span>
+                  </div>
                 </div>
+              ))
+            ) : (
+              <div className="p-6 text-center border border-wds-yellow/30 bg-wds-bg space-y-1.5">
+                <div className="font-pixel text-[10px] text-wds-yellow">
+                  {isTasksOffline ? "&gt;_ TASKS DATABASE OFFLINE" : "&gt;_ NO SPRINT TASKS"}
+                </div>
+                <p className="text-xs text-wds-muted">
+                  {isTasksOffline
+                    ? "Connect your Notion Tasks database in .env.local"
+                    : "No active sprint items found in database."}
+                </p>
               </div>
-            ))}
+            )}
           </div>
 
           <div className="pt-2 border-t border-wds-yellow/20 flex justify-between items-center text-xs">
@@ -219,77 +267,30 @@ export function DashboardView({
         </div>
       </div>
 
-      {/* Secondary Work: Recent Activity Stream & Quick Links */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Activity Stream */}
-        <div className="lg:col-span-6 p-5 border-2 border-wds-yellow bg-wds-card shadow-pixel-yellow space-y-4">
-          <div className="font-pixel text-xs text-wds-yellow pb-2 border-b border-wds-yellow/30 flex items-center justify-between">
-            <span>&gt;_ RECENT OPERATIONS LOG</span>
-            <span className="text-[9px] text-wds-muted">AUDIT TRAIL</span>
-          </div>
-
-          <div className="space-y-3 text-xs">
-            <div className="flex items-start gap-3 p-2.5 bg-wds-bg border border-wds-yellow/20">
-              <CheckSquare className="w-4 h-4 text-wds-green shrink-0 mt-0.5" />
-              <div className="space-y-0.5">
-                <div>
-                  <strong className="text-wds-white font-bold">Tech Lead</strong> verified syllabus links on MSIT Portal
-                </div>
-                <div className="text-[10px] text-wds-muted">2 hours ago • MSIT Portal</div>
-              </div>
-            </div>
-
-            <div className="flex items-start gap-3 p-2.5 bg-wds-bg border border-wds-yellow/20">
-              <FolderArchive className="w-4 h-4 text-wds-yellow shrink-0 mt-0.5" />
-              <div className="space-y-0.5">
-                <div>
-                  <strong className="text-wds-white font-bold">Design Wing</strong> synced official brand asset pack
-                </div>
-                <div className="text-[10px] text-wds-muted">5 hours ago • Asset Drive</div>
-              </div>
-            </div>
-
-            <div className="flex items-start gap-3 p-2.5 bg-wds-bg border border-wds-yellow/20">
-              <Bug className="w-4 h-4 text-wds-yellow shrink-0 mt-0.5" />
-              <div className="space-y-0.5">
-                <div>
-                  <strong className="text-wds-white font-bold">Bug #24</strong> under triage by QA team
-                </div>
-                <div className="text-[10px] text-wds-muted">3 hours ago • Bug Tracker</div>
-              </div>
-            </div>
-          </div>
+      {/* Quick Links Matrix */}
+      <div className="p-5 border-2 border-wds-yellow bg-wds-card shadow-pixel-yellow space-y-4">
+        <div className="font-pixel text-xs text-wds-yellow pb-2 border-b border-wds-yellow/30">
+          &gt;_ VERIFIED QUICK ACCESS
         </div>
 
-        {/* Quick Links Matrix */}
-        <div className="lg:col-span-6 p-5 border-2 border-wds-yellow bg-wds-card shadow-pixel-yellow space-y-4">
-          <div className="font-pixel text-xs text-wds-yellow pb-2 border-b border-wds-yellow/30">
-            &gt;_ VERIFIED QUICK ACCESS
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-            {[
-              { name: "WDS Main Website", href: "/" },
-              { name: "WDS Bug Hunt Platform", href: "https://wds-bug-hunt.netlify.app/bug-hunt", ext: true },
-              { name: "GitHub Repository", href: "https://github.com/JayantOlhyan/WDS-website", ext: true },
-              { name: "MSIT Official Portal", href: "https://msit.in", ext: true },
-              { name: "WDS Terminal CLI", href: "/terminal" },
-              { name: "Recruitment 2026 Portal", href: "/recruitment" },
-              { name: "Team & Wing Directory", href: "/team" },
-              { name: "Campus Office & Contact", href: "/contact" },
-            ].map((link, idx) => (
-              <Link
-                key={idx}
-                href={link.href}
-                onClick={() => sound.playClick()}
-                className="p-2.5 border border-wds-border-dim bg-wds-bg hover:border-wds-yellow hover:text-wds-yellow flex items-center justify-between transition-colors group"
-                {...(link.ext ? { target: "_blank", rel: "noopener noreferrer" } : {})}
-              >
-                <span className="truncate">{link.name}</span>
-                <ArrowRight className="w-3.5 h-3.5 shrink-0 opacity-60 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
-              </Link>
-            ))}
-          </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2 text-xs">
+          {[
+            { name: "WDS Main Website", href: "/" },
+            { name: "WDS Bug Hunt Platform", href: "https://wds-bug-hunt.netlify.app/bug-hunt", ext: true },
+            { name: "GitHub Repository", href: "https://github.com/JayantOlhyan/WDS-website", ext: true },
+            { name: "MSIT Official Portal", href: "https://msit.in", ext: true },
+          ].map((link, idx) => (
+            <Link
+              key={idx}
+              href={link.href}
+              onClick={() => sound.playClick()}
+              className="p-2.5 border border-wds-border-dim bg-wds-bg hover:border-wds-yellow hover:text-wds-yellow flex items-center justify-between transition-colors group"
+              {...(link.ext ? { target: "_blank", rel: "noopener noreferrer" } : {})}
+            >
+              <span className="truncate">{link.name}</span>
+              <ArrowRight className="w-3.5 h-3.5 shrink-0 opacity-60 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
+            </Link>
+          ))}
         </div>
       </div>
     </div>

@@ -2,16 +2,18 @@
 
 import React, { useState } from "react";
 import { sound } from "@/lib/soundEffects";
-import { Plus } from "lucide-react";
+import { Plus, AlertCircle, RotateCcw } from "lucide-react";
 import { TaskItem } from "@/lib/hub/types";
 
 interface TaskViewProps {
   tasks: TaskItem[];
+  isOffline?: boolean;
+  onRetry?: () => void;
   onToggleTask: (id: string) => void;
   onOpenNewTaskModal: () => void;
 }
 
-export function TaskView({ tasks, onToggleTask, onOpenNewTaskModal }: TaskViewProps) {
+export function TaskView({ tasks, isOffline, onRetry, onToggleTask, onOpenNewTaskModal }: TaskViewProps) {
   const [filter, setFilter] = useState<"ALL" | "TODAY" | "UPCOMING" | "COMPLETED">("ALL");
 
   const filteredTasks = tasks.filter((task) => {
@@ -43,6 +45,32 @@ export function TaskView({ tasks, onToggleTask, onOpenNewTaskModal }: TaskViewPr
           <span>NEW TASK</span>
         </button>
       </div>
+
+      {/* Offline Alert */}
+      {isOffline && (
+        <div className="p-4 bg-wds-card border-2 border-wds-yellow/60 shadow-pixel-yellow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs font-mono">
+          <div className="flex items-center gap-2.5 text-wds-yellow">
+            <AlertCircle className="w-4 h-4 shrink-0" />
+            <div>
+              <span className="font-bold">Notion Tasks Database Not Connected:</span> Connect{" "}
+              <code>NOTION_TASKS_DATABASE_ID</code> to enable live persistence.
+            </div>
+          </div>
+          {onRetry && (
+            <button
+              type="button"
+              onClick={() => {
+                sound.playClick();
+                onRetry();
+              }}
+              className="px-3 py-1 bg-wds-yellow text-wds-bg font-pixel text-[10px] font-bold flex items-center gap-1 shrink-0"
+            >
+              <RotateCcw className="w-3 h-3" />
+              <span>RETRY</span>
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Filter Tabs Bar */}
       <div className="flex flex-wrap items-center justify-between gap-3 p-3 bg-wds-card border border-wds-yellow/40">
@@ -142,8 +170,14 @@ export function TaskView({ tasks, onToggleTask, onOpenNewTaskModal }: TaskViewPr
           ))
         ) : (
           <div className="p-8 text-center border-2 border-wds-yellow/30 bg-wds-card space-y-2">
-            <div className="font-pixel text-xs text-wds-yellow">&gt;_ NO TASKS MATCHING FILTER</div>
-            <p className="text-xs text-wds-muted">All clear! No pending sprint items in this view.</p>
+            <div className="font-pixel text-xs text-wds-yellow">
+              {isOffline ? "&gt;_ DATABASE TEMPORARILY OFFLINE" : "&gt;_ NO SPRINT TASKS"}
+            </div>
+            <p className="text-xs text-wds-muted">
+              {isOffline
+                ? "Notion database connection offline. Click retry or check server credentials."
+                : "No active sprint items in this view. Click + NEW TASK to add one."}
+            </p>
           </div>
         )}
       </div>

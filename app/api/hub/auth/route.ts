@@ -1,18 +1,27 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
-  HUB_ACCESS_KEYS,
   HUB_COOKIE_NAME,
-  encodeHubSession,
   getHubSessionFromRequest,
-  HubUserSession,
+  validateAccessKey,
 } from "@/lib/auth";
+import { sessionStore } from "@/lib/sessionStore";
 
 export async function GET(req: NextRequest) {
   const session = getHubSessionFromRequest(req);
   if (!session) {
     return NextResponse.json({ authenticated: false }, { status: 200 });
   }
-  return NextResponse.json({ authenticated: true, session }, { status: 200 });
+  return NextResponse.json(
+    {
+      authenticated: true,
+      session: {
+        username: session.username,
+        role: session.role,
+        wing: session.wing,
+      },
+    },
+    { status: 200 }
+  );
 }
 
 export async function POST(req: NextRequest) {
@@ -22,37 +31,42 @@ export async function POST(req: NextRequest) {
 
     if (!accessKey || typeof accessKey !== "string") {
       return NextResponse.json(
-        { success: false, error: "Access key is required." },
+        { success: false, error: "VALIDATION_ERROR", message: "Access key is required." },
         { status: 400 }
       );
     }
 
-    const keyConfig = HUB_ACCESS_KEYS[accessKey.trim().toLowerCase()];
-    if (!keyConfig) {
+    const authResult = validateAccessKey(accessKey);
+    if (!authResult) {
       return NextResponse.json(
-        { success: false, error: "Invalid access key. Access denied." },
+        { success: false, error: "UNAUTHORIZED", message: "Invalid access key. Access denied." },
         { status: 401 }
       );
     }
 
-    const sessionData: HubUserSession = {
-      username: keyConfig.username,
-      role: keyConfig.role,
-      wing: keyConfig.wing,
-      issuedAt: Date.now(),
-    };
-
-    const token = encodeHubSession(sessionData);
+    // Create opaque server session
+    const session = sessionStore.createSession(
+      authResult.username,
+      authResult.role,
+      authResult.wing
+    );
 
     const response = NextResponse.json(
-      { success: true, session: sessionData },
+      {
+        success: true,
+        session: {
+          username: session.username,
+          role: session.role,
+          wing: session.wing,
+        },
+      },
       { status: 200 }
     );
 
-    // Set secure HTTP-only cookie
+    // Set secure HTTP-only cookie with opaque session ID only
     response.cookies.set({
       name: HUB_COOKIE_NAME,
-      value: token,
+      value: session.sessionId,
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
@@ -64,13 +78,18 @@ export async function POST(req: NextRequest) {
   } catch (err: unknown) {
     console.error("[Hub Auth POST Error]:", err);
     return NextResponse.json(
-      { success: false, error: "Authentication system error." },
+      { success: false, error: "INTERNAL_ERROR", message: "Authentication server error." },
       { status: 500 }
     );
   }
 }
 
-export async function DELETE() {
+export async function DELETE(req: NextRequest) {
+  const cookie = req.cookies.get(HUB_COOKIE_NAME);
+  if (cookie?.value) {
+    sessionStore.deleteSession(cookie.value);
+  }
+
   const response = NextResponse.json({ success: true, message: "Logged out." }, { status: 200 });
   response.cookies.delete(HUB_COOKIE_NAME);
   return response;
