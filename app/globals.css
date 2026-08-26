@@ -1,0 +1,231 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Press+Start+2P&family=Silkscreen:wght@400;700&family=Space+Mono:ital,wght@0,400;0,700;1,400&family=JetBrains+Mono:wght@400;500;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --color-wds-yellow: #FFD600;
+  --color-wds-bg: #050708;
+  --color-wds-secondary: #07151D;
+  --color-wds-card: #081014;
+  --color-wds-white: #F5F0DF;
+  --color-wds-muted: #9A9D9A;
+  --color-wds-green: #00FF66;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  background-color: var(--color-wds-bg);
+  color: var(--color-wds-white);
+  font-family: 'Space Mono', 'JetBrains Mono', monospace;
+  overflow-x: hidden;
+  selection-background-color: #FFD600;
+  selection-color: #050708;
+}
+
+::selection {
+  background-color: #FFD600;
+  color: #050708;
+}
+
+/* Custom Pixel Corner Box */
+.pixel-corners {
+  clip-path: polygon(
+    0 4px,
+    4px 4px,
+    4px 0,
+    calc(100% - 4px) 0,
+    calc(100% - 4px) 4px,
+    100% 4px,
+    100% calc(100% - 4px),
+    calc(100% - 4px) calc(100% - 4px),
+    calc(100% - 4px) 100%,
+    4px 100%,
+    4px calc(100% - 4px),
+    0 calc(100% - 4px)
+  );
+}
+
+.pixel-corners-lg {
+  clip-path: polygon(
+    0 8px,
+    8px 8px,
+    8px 0,
+    calc(100% - 8px) 0,
+    calc(100% - 8px) 8px,
+    100% 8px,
+    100% calc(100% - 8px),
+    calc(100% - 8px) calc(100% - 8px),
+    calc(100% - 8px) 100%,
+    8px 100%,
+    8px calc(100% - 8px),
+    0 calc(100% - 8px)
+  );
+}
+
+/* Retro Pixel Border Frame with Notched Corner Accent */
+.pixel-frame {
+  position: relative;
+  border: 1.5px solid #FFD600;
+  background-color: #081014;
+}
+
+.pixel-frame::before {
+  content: '';
+  position: absolute;
+  top: -3px;
+  left: -3px;
+  width: 6px;
+  height: 6px;
+  background-color: #FFD600;
+}
+
+.pixel-frame::after {
+  content: '';
+  position: absolute;
+  bottom: -3px;
+  right: -3px;
+  width: 6px;
+  height: 6px;
+  background-color: #FFD600;
+}
+
+.pixel-frame-corners {
+  position: relative;
+}
+
+.pixel-frame-corners .corner-tl {
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  width: 6px;
+  height: 6px;
+  background: #FFD600;
+}
+
+.pixel-frame-corners .corner-tr {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  width: 6px;
+  height: 6px;
+  background: #FFD600;
+}
+
+.pixel-frame-corners .corner-bl {
+  position: absolute;
+  bottom: -2px;
+  left: -2px;
+  width: 6px;
+  height: 6px;
+  background: #FFD600;
+}
+
+.pixel-frame-corners .corner-br {
+  position: absolute;
+  bottom: -2px;
+  right: -2px;
+  width: 6px;
+  height: 6px;
+  background: #FFD600;
+}
+
+/* Dot Grid Background Pattern */
+.bg-grid-dots {
+  background-image: radial-gradient(rgba(255, 214, 0, 0.12) 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+
+.bg-grid-lines {
+  background-image: 
+    linear-gradient(to right, rgba(255, 214, 0, 0.05) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 214, 0, 0.05) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+/* Scanline Effect */
+.scanline-effect {
+  background: linear-gradient(
+    rgba(18, 16, 16, 0) 50%, 
+    rgba(0, 0, 0, 0.35) 50%
+  ), linear-gradient(
+    90deg,
+    rgba(255, 0, 0, 0.03),
+    rgba(0, 255, 0, 0.01),
+    rgba(0, 0, 255, 0.03)
+  );
+  background-size: 100% 3px, 6px 100%;
+  pointer-events: none;
+}
+
+/* Custom Retro Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #050708;
+  border-left: 1px solid rgba(255, 214, 0, 0.2);
+}
+
+::-webkit-scrollbar-thumb {
+  background: #FFD600;
+  border: 1px solid #050708;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #fff176;
+}
+
+/* Pixel Checkbox */
+.pixel-checkbox {
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border: 2px solid #FFD600;
+  background-color: #050708;
+  display: inline-grid;
+  place-content: center;
+  cursor: pointer;
+  vertical-align: middle;
+}
+
+.pixel-checkbox:checked::before {
+  content: "";
+  width: 10px;
+  height: 10px;
+  background-color: #FFD600;
+}
+
+/* Terminal Text Shadow */
+.text-glow-yellow {
+  text-shadow: 0 0 10px rgba(255, 214, 0, 0.5);
+}
+
+.text-glow-green {
+  text-shadow: 0 0 10px rgba(0, 255, 102, 0.6);
+}
+
+.border-glow-yellow {
+  box-shadow: 0 0 12px rgba(255, 214, 0, 0.25);
+}
+
+/* Blinking Cursor */
+.terminal-cursor {
+  display: inline-block;
+  width: 8px;
+  height: 16px;
+  background-color: #FFD600;
+  vertical-align: middle;
+  animation: blink 1s step-end infinite;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
