@@ -3,6 +3,7 @@ import "./globals.css";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { CRTOverlay } from "@/components/ui/CRTOverlay";
+import { Preloader } from "@/components/ui/Preloader";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://wds-msit.org"),
@@ -105,6 +106,9 @@ export default function RootLayout({
         />
       </head>
       <body className="bg-wds-bg text-wds-white min-h-screen flex flex-col antialiased selection:bg-wds-yellow selection:text-wds-bg">
+        {/* Global Loading Animation */}
+        <Preloader />
+
         {/* Subtle Scanline Overlay */}
         <CRTOverlay />
 
