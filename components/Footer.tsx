@@ -127,21 +127,33 @@ export function Footer() {
               <ul className="space-y-2 text-wds-muted">
                 {[
                   { name: "MSIT Website", href: "https://msit.in", ext: true },
-                  { name: "WDS Bug Hunt", href: "https://wds-bug-hunt.netlify.app/bug-hunt", ext: true },
-                  { name: "WDS Terminal CLI", href: "/terminal" },
-                  { name: "WDS Website Hub", href: "/hub" },
-                  { name: "Tech Newsletter", href: "/projects#newsletter" },
-                  { name: "Freshers Hub", href: "/projects#freshers-hub" },
+                  { name: "WDS Bug Hunt", href: "/hub", ext: false },
+                  { name: "WDS Terminal CLI", href: "/terminal", ext: false },
+                  { name: "WDS Website Hub", href: "/hub", ext: false },
+                  { name: "Tech Newsletter", href: "/projects", ext: false },
+                  { name: "Freshers Hub", href: "/opportunities", ext: false },
                 ].map((item) => (
                   <li key={item.name}>
-                    <Link
-                      href={item.href}
-                      onClick={() => sound.playClick()}
-                      className="hover:text-wds-yellow transition-colors inline-flex items-center gap-1"
-                      {...(item.ext ? { target: "_blank", rel: "noopener noreferrer" } : {})}
-                    >
-                      <span>{item.name}</span>
-                    </Link>
+                    {item.ext ? (
+                      <a
+                        href={item.href}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={() => sound.playClick()}
+                        className="hover:text-wds-yellow transition-colors inline-flex items-center gap-1"
+                      >
+                        <span>{item.name}</span>
+                        <ArrowUpRight className="w-3 h-3 opacity-60" />
+                      </a>
+                    ) : (
+                      <Link
+                        href={item.href}
+                        onClick={() => sound.playClick()}
+                        className="hover:text-wds-yellow transition-colors inline-flex items-center gap-1"
+                      >
+                        <span>{item.name}</span>
+                      </Link>
+                    )}
                   </li>
                 ))}
               </ul>
@@ -158,7 +170,7 @@ export function Footer() {
                   { name: "WhatsApp", href: "https://chat.whatsapp.com/wds-msit" },
                   { name: "Instagram", href: "https://instagram.com/wds_msit" },
                   { name: "LinkedIn", href: "https://linkedin.com/company/wds-msit" },
-                  { name: "GitHub", href: "https://github.com/wds-msit" },
+                  { name: "GitHub", href: "https://github.com/JayantOlhyan/WDS-website" },
                   { name: "YouTube", href: "https://youtube.com/@wds-msit" },
                   { name: "Discord", href: "https://discord.gg/wds-msit" },
                 ].map((item) => (
@@ -186,7 +198,7 @@ export function Footer() {
               </div>
               <ul className="space-y-2 text-wds-muted">
                 {[
-                  { name: "Events", href: "/projects" },
+                  { name: "Events", href: "/opportunities" },
                   { name: "Workshops", href: "/opportunities" },
                   { name: "Announcements", href: "/about" },
                   { name: "Documentation", href: "/terminal" },
@@ -215,15 +227,29 @@ export function Footer() {
               <div className="space-y-2.5 text-wds-muted text-[11px]">
                 <div className="flex items-start gap-1.5">
                   <Mail className="w-3.5 h-3.5 text-wds-yellow shrink-0 mt-0.5" />
-                  <span className="text-wds-white break-all">hello@wds.msit</span>
+                  <a
+                    href="mailto:hello@wds.msit"
+                    className="text-wds-white hover:text-wds-yellow hover:underline transition-colors break-all"
+                  >
+                    hello@wds.msit
+                  </a>
                 </div>
                 <div className="flex items-start gap-1.5">
                   <MapPin className="w-3.5 h-3.5 text-wds-yellow shrink-0 mt-0.5" />
-                  <span>Maharaja Surajmal Institute of Technology, New Delhi - 110058</span>
+                  <a
+                    href="https://maps.google.com/?q=Maharaja+Surajmal+Institute+of+Technology+New+Delhi"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="hover:text-wds-yellow hover:underline transition-colors"
+                  >
+                    Maharaja Surajmal Institute of Technology, New Delhi - 110058
+                  </a>
                 </div>
                 <div className="flex items-start gap-1.5">
                   <Building className="w-3.5 h-3.5 text-wds-yellow shrink-0 mt-0.5" />
-                  <span>Room No. 201 (Near CSE Dept.)</span>
+                  <Link href="/contact" className="hover:text-wds-yellow hover:underline transition-colors">
+                    Room No. 201 (Near CSE Dept.)
+                  </Link>
                 </div>
               </div>
 
@@ -264,7 +290,7 @@ export function Footer() {
                 Open for ideas, PRs &amp; feedback.
               </p>
               <a
-                href="https://github.com/wds-msit"
+                href="https://github.com/JayantOlhyan/WDS-website"
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={() => sound.playClick()}
