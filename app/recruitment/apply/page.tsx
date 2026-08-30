@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
+import confetti from "canvas-confetti";
 import { PixelButton } from "@/components/ui/PixelButton";
 import { TerminalWindow } from "@/components/ui/TerminalWindow";
 import { sound } from "@/lib/soundEffects";
@@ -163,9 +164,8 @@ export default function RecruitmentApplyPage() {
 
       sound.playSuccess();
 
-      // Dynamic import of canvas-confetti for client-side execution
+      // Trigger victory confetti on client-side
       try {
-        const confetti = (await import("canvas-confetti")).default;
         confetti({
           particleCount: 120,
           spread: 70,
@@ -260,27 +260,27 @@ export default function RecruitmentApplyPage() {
       </div>
 
       {/* Progress HUD Bar */}
-      <div className="mb-6 p-3 border-2 border-wds-yellow bg-wds-card shadow-pixel-yellow flex items-center justify-between font-pixel text-xs">
-        <div className="flex items-center gap-2 text-wds-yellow">
+      <div className="mb-6 p-3 border-2 border-wds-yellow bg-wds-card shadow-pixel-yellow flex items-center justify-between font-pixel text-xs gap-3">
+        <div className="flex items-center gap-2 text-wds-yellow shrink-0">
           <span>STEP</span>
-          <span className="px-2 py-0.5 bg-wds-yellow text-wds-bg font-bold">
+          <span className="px-2 py-0.5 bg-wds-yellow text-wds-bg font-bold whitespace-nowrap">
             0{currentStep} / 05
           </span>
         </div>
 
-        <div className="hidden sm:flex items-center gap-3 text-[10px] text-wds-muted">
-          <span className={currentStep === 1 ? "text-wds-yellow font-bold" : ""}>01 INFO</span>
+        <div className="hidden md:flex items-center gap-2.5 text-[10px] text-wds-muted shrink-0">
+          <span className={`whitespace-nowrap ${currentStep === 1 ? "text-wds-yellow font-bold" : ""}`}>01 INFO</span>
           <span>&gt;</span>
-          <span className={currentStep === 2 ? "text-wds-yellow font-bold" : ""}>02 INTERESTS</span>
+          <span className={`whitespace-nowrap ${currentStep === 2 ? "text-wds-yellow font-bold" : ""}`}>02 INTERESTS</span>
           <span>&gt;</span>
-          <span className={currentStep === 3 ? "text-wds-yellow font-bold" : ""}>03 EXPERIENCE</span>
+          <span className={`whitespace-nowrap ${currentStep === 3 ? "text-wds-yellow font-bold" : ""}`}>03 EXPERIENCE</span>
           <span>&gt;</span>
-          <span className={currentStep === 4 ? "text-wds-yellow font-bold" : ""}>04 MINDSET</span>
+          <span className={`whitespace-nowrap ${currentStep === 4 ? "text-wds-yellow font-bold" : ""}`}>04 MINDSET</span>
           <span>&gt;</span>
-          <span className={currentStep === 5 ? "text-wds-yellow font-bold" : ""}>05 CONFIRM</span>
+          <span className={`whitespace-nowrap ${currentStep === 5 ? "text-wds-yellow font-bold" : ""}`}>05 CONFIRM</span>
         </div>
 
-        <div className="w-24 sm:w-36 h-2 bg-wds-bg border border-wds-yellow">
+        <div className="w-24 sm:w-36 h-2 bg-wds-bg border border-wds-yellow shrink-0">
           <div
             className="h-full bg-wds-yellow transition-all duration-300"
             style={{ width: `${(currentStep / 5) * 100}%` }}
@@ -420,17 +420,15 @@ export default function RecruitmentApplyPage() {
                       key={interest}
                       type="button"
                       onClick={() => toggleInterest(interest)}
-                      className={`p-3 border text-left flex items-center justify-between text-xs transition-colors ${
-                        isChecked
+                      className={`p-3 border text-left flex items-center justify-between text-xs transition-colors ${isChecked
                           ? "border-wds-yellow bg-wds-yellow/15 text-wds-white font-bold"
                           : "border-wds-border-dim bg-wds-bg text-wds-muted hover:border-wds-yellow"
-                      }`}
+                        }`}
                     >
                       <span>{interest}</span>
                       <span
-                        className={`w-4 h-4 border flex items-center justify-center text-[10px] ${
-                          isChecked ? "border-wds-yellow bg-wds-yellow text-wds-bg" : "border-wds-border-dim"
-                        }`}
+                        className={`w-4 h-4 border flex items-center justify-center text-[10px] ${isChecked ? "border-wds-yellow bg-wds-yellow text-wds-bg" : "border-wds-border-dim"
+                          }`}
                       >
                         {isChecked ? "✓" : ""}
                       </span>
@@ -470,11 +468,10 @@ export default function RecruitmentApplyPage() {
                         sound.playClick();
                         setFormData({ ...formData, experienceLevel: lvl.title });
                       }}
-                      className={`p-3 border text-left text-xs transition-colors ${
-                        formData.experienceLevel === lvl.title
+                      className={`p-3 border text-left text-xs transition-colors ${formData.experienceLevel === lvl.title
                           ? "border-wds-yellow bg-wds-yellow/15 font-bold"
                           : "border-wds-border-dim bg-wds-bg text-wds-muted hover:border-wds-yellow"
-                      }`}
+                        }`}
                     >
                       <div className="text-wds-yellow font-bold">{lvl.title}</div>
                       <div className="text-[11px] text-wds-muted mt-0.5">{lvl.desc}</div>
