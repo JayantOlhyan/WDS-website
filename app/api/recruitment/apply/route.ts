@@ -123,6 +123,31 @@ export async function POST(req: NextRequest) {
     };
     const mappedTeam = WING_MAPPING[validatedData.preferredTeam] || validatedData.preferredTeam;
 
+    // Notion Select property strict mapping
+    const EXP_MAPPING: Record<string, string> = {
+      "Complete Beginner": "Beginner",
+      "Basic Knowledge": "Beginner",
+      "Some Projects": "Intermediate",
+      "Comfortable": "Intermediate",
+      "Real-world": "Advanced",
+    };
+    const mappedExp = EXP_MAPPING[validatedData.experienceLevel] || "Beginner";
+
+    const TIME_MAPPING: Record<string, string> = {
+      "1–2 hours / week": "4-8 hrs",
+      "1-2 hours / week": "4-8 hrs",
+      "2–4 hours / week": "4-8 hrs",
+      "2-4 hours / week": "4-8 hrs",
+      "4–6 hours / week": "4-8 hrs",
+      "4-6 hours / week": "4-8 hrs",
+      "4–8 hours / week": "4-8 hrs",
+      "4-8 hours / week": "4-8 hrs",
+      "6+ hours / week": "4-8 hrs", // Mapping everything under 8 hrs to "4-8 hrs" for canonical consistency
+      "8–12 hours / week": "8-12 hrs",
+      "12+ hours / week": "12+ hrs",
+    };
+    const mappedTime = TIME_MAPPING[validatedData.timeCommitment] || "4-8 hrs";
+
     // 6. Notes Compilation
     const notes = [
       validatedData.interests.length > 0 ? `Interests:\n${validatedData.interests.join(", ")}\n` : "",
@@ -130,7 +155,9 @@ export async function POST(req: NextRequest) {
       validatedData.whyWds ? `Why WDS:\n${validatedData.whyWds}\n` : "",
       validatedData.learningGoal ? `Learning Goal:\n${validatedData.learningGoal}\n` : "",
       validatedData.scenarioResponse ? `Scenario Response:\n${validatedData.scenarioResponse}\n` : "",
-    ].filter(Boolean).join("\n");
+      // Keep original raw values in notes for reference since they were aggressively mapped
+      `[Raw Selections - Exp: ${validatedData.experienceLevel}, Time: ${validatedData.timeCommitment}, Wing: ${validatedData.preferredTeam}]`
+    ].filter(Boolean).join("\n\n");
 
     // 7. Submit to CandidatesRepository
     const result = await candidatesRepository.create({
@@ -142,8 +169,8 @@ export async function POST(req: NextRequest) {
       section: validatedData.section,
       year: validatedData.year,
       preferredWing: mappedTeam,
-      experienceLevel: validatedData.experienceLevel,
-      timeCommitment: validatedData.timeCommitment,
+      experienceLevel: mappedExp,
+      timeCommitment: mappedTime,
       githubUrl: validatedData.githubUrl,
       linkedinUrl: validatedData.linkedinUrl,
       portfolioUrl: validatedData.portfolioUrl,
