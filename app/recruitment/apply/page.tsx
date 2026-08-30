@@ -266,10 +266,10 @@ export default function RecruitmentApplyPage() {
           <span>WDS RECRUITMENT 2026 APPLICATION</span>
         </div>
         <h1 className="font-pixel text-2xl sm:text-3xl text-wds-white">
-          JOIN THE DIGITAL WORKSHOP
+          JOIN THE SOCIETY
         </h1>
         <p className="text-xs sm:text-sm text-wds-muted max-w-xl mx-auto">
-          No prior experience is mandatory. We look for curiosity, consistency and problem-solving passion.
+          It's for joining the society, it's for the interviews.
         </p>
       </div>
 
