@@ -58,8 +58,10 @@ export const recruitmentApplicationSchema = z.object({
     .trim(),
   enrollmentNo: z
     .string()
-    .regex(/^[0-9]{11}$/, "Enrollment Number must be exactly 11 digits")
+    .min(8, "Phone or Enrollment Number must be at least 8 digits")
+    .max(20, "Phone or Enrollment Number must not exceed 20 characters")
     .trim(),
+  year: z.string().max(20).optional().default("1st Year"),
   branch: z.enum(ALLOWED_BRANCHES),
   section: z
     .string()

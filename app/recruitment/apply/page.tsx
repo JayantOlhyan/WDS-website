@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import Link from "next/link";
 import confetti from "canvas-confetti";
 import { PixelButton } from "@/components/ui/PixelButton";
+import { PixelSelect } from "@/components/ui/PixelSelect";
 import { TerminalWindow } from "@/components/ui/TerminalWindow";
 import { sound } from "@/lib/soundEffects";
 import {
@@ -20,10 +21,11 @@ import {
 interface FormData {
   fullName: string;
   enrollmentNo: string;
+  phone: string;
+  year: string;
   branch: string;
   section: string;
   collegeEmail: string;
-  phone: string;
   interests: string[];
   experienceLevel: string;
   githubUrl: string;
@@ -40,10 +42,11 @@ interface FormData {
 const INITIAL_FORM: FormData = {
   fullName: "",
   enrollmentNo: "",
+  phone: "",
+  year: "1st Year",
   branch: "Computer Science & Engineering (CSE)",
   section: "CSE-1",
   collegeEmail: "",
-  phone: "",
   interests: ["Frontend", "UI/UX"],
   experienceLevel: "Complete Beginner",
   githubUrl: "",
@@ -99,16 +102,16 @@ export default function RecruitmentApplyPage() {
         setErrorMsg("Please enter your Full Name.");
         return false;
       }
-      if (!formData.enrollmentNo.trim()) {
-        setErrorMsg("Please enter your Enrollment Number / Roll Number.");
+      if (!formData.phone.trim() || formData.phone.trim().length < 8) {
+        setErrorMsg("Please enter a valid Phone / WhatsApp number.");
         return false;
       }
       if (!formData.collegeEmail.trim() || !formData.collegeEmail.includes("@")) {
         setErrorMsg("Please enter a valid Email address.");
         return false;
       }
-      if (!formData.phone.trim() || formData.phone.trim().length < 8) {
-        setErrorMsg("Please enter a valid Phone / WhatsApp number.");
+      if (!formData.section.trim()) {
+        setErrorMsg("Please enter your Section / Shift.");
         return false;
       }
     } else if (step === 2) {
@@ -150,10 +153,15 @@ export default function RecruitmentApplyPage() {
     setErrorMsg(null);
 
     try {
+      const payload = {
+        ...formData,
+        enrollmentNo: formData.enrollmentNo || formData.phone.replace(/[^0-9]/g, "") || formData.phone,
+      };
+
       const response = await fetch("/api/recruitment/apply", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(payload),
       });
 
       const resData = await response.json();
@@ -365,36 +373,43 @@ export default function RecruitmentApplyPage() {
 
                 <div>
                   <label className="block text-xs font-bold text-wds-white mb-1.5">
-                    Enrollment / Roll Number <span className="text-wds-yellow">*</span>
+                    Phone / WhatsApp Number <span className="text-wds-yellow">*</span>
                   </label>
                   <input
-                    type="text"
+                    type="tel"
                     required
-                    value={formData.enrollmentNo}
-                    onChange={(e) => setFormData({ ...formData, enrollmentNo: e.target.value })}
-                    placeholder="e.g. 04215002724"
+                    value={formData.phone}
+                    onChange={(e) => setFormData({ ...formData, phone: e.target.value, enrollmentNo: e.target.value })}
+                    placeholder="e.g. +91 9876543210"
                     className="w-full p-2.5 bg-wds-bg border border-wds-yellow/40 text-wds-white text-xs outline-none focus:border-wds-yellow"
                   />
                 </div>
 
-                <div>
-                  <label className="block text-xs font-bold text-wds-white mb-1.5">
-                    Branch <span className="text-wds-yellow">*</span>
-                  </label>
-                  <select
-                    value={formData.branch}
-                    onChange={(e) => setFormData({ ...formData, branch: e.target.value })}
-                    className="w-full p-2.5 bg-wds-bg border border-wds-yellow/40 text-wds-white text-xs outline-none focus:border-wds-yellow"
-                  >
-                    <option value="Computer Science & Engineering (CSE)">Computer Science &amp; Engineering (CSE)</option>
-                    <option value="Information Technology (IT)">Information Technology (IT)</option>
-                    <option value="Electronics & Communication (ECE)">Electronics &amp; Communication (ECE)</option>
-                    <option value="Electrical & Electronics (EEE)">Electrical &amp; Electronics (EEE)</option>
-                    <option value="Artificial Intelligence & Machine Learning (AI&ML)">AI &amp; Machine Learning (AI&amp;ML)</option>
-                    <option value="Artificial Intelligence & Data Science (AI&DS)">AI &amp; Data Science (AI&amp;DS)</option>
-                    <option value="Other Department">Other Department</option>
-                  </select>
-                </div>
+                <PixelSelect
+                  label="Year of Study"
+                  required
+                  value={formData.year}
+                  onChange={(val) => setFormData({ ...formData, year: val })}
+                  options={[
+                    { value: "1st Year", label: "1st Year (First Year)" },
+                    { value: "2nd Year", label: "2nd Year (Second Year)" },
+                    { value: "3rd Year", label: "3rd Year (Third Year)" },
+                    { value: "4th Year", label: "4th Year (Fourth Year)" },
+                  ]}
+                />
+
+                <PixelSelect
+                  label="Branch"
+                  required
+                  value={formData.branch}
+                  onChange={(val) => setFormData({ ...formData, branch: val })}
+                  options={[
+                    "Computer Science & Engineering (CSE)",
+                    "Information Technology (IT)",
+                    "Electronics & Communication Engineering (ECE)",
+                    "Electrical & Electronics Engineering (EEE)",
+                  ]}
+                />
 
                 <div>
                   <label className="block text-xs font-bold text-wds-white mb-1.5">
@@ -405,7 +420,7 @@ export default function RecruitmentApplyPage() {
                     required
                     value={formData.section}
                     onChange={(e) => setFormData({ ...formData, section: e.target.value })}
-                    placeholder="e.g. CSE-1 (Shift 1) or IT-2"
+                    placeholder="e.g. Shift 1 / CSE-1 or IT-2"
                     className="w-full p-2.5 bg-wds-bg border border-wds-yellow/40 text-wds-white text-xs outline-none focus:border-wds-yellow"
                   />
                 </div>
@@ -420,20 +435,6 @@ export default function RecruitmentApplyPage() {
                     value={formData.collegeEmail}
                     onChange={(e) => setFormData({ ...formData, collegeEmail: e.target.value })}
                     placeholder="e.g. priyanshu@msit.in or gmail.com"
-                    className="w-full p-2.5 bg-wds-bg border border-wds-yellow/40 text-wds-white text-xs outline-none focus:border-wds-yellow"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-wds-white mb-1.5">
-                    Phone / WhatsApp Number <span className="text-wds-yellow">*</span>
-                  </label>
-                  <input
-                    type="tel"
-                    required
-                    value={formData.phone}
-                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                    placeholder="e.g. +91 9876543210"
                     className="w-full p-2.5 bg-wds-bg border border-wds-yellow/40 text-wds-white text-xs outline-none focus:border-wds-yellow"
                   />
                 </div>
@@ -616,46 +617,40 @@ export default function RecruitmentApplyPage() {
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold text-wds-white mb-1.5">
-                    Realistic Weekly Time Contribution:
-                  </label>
-                  <select
-                    value={formData.timeCommitment}
-                    onChange={(e) => setFormData({ ...formData, timeCommitment: e.target.value })}
-                    className="w-full p-2.5 bg-wds-bg border border-wds-yellow/40 text-wds-white text-xs outline-none focus:border-wds-yellow"
-                  >
-                    <option value="1–2 hours / week">1–2 hours / week</option>
-                    <option value="2–4 hours / week">2–4 hours / week</option>
-                    <option value="4–6 hours / week">4–6 hours / week</option>
-                    <option value="6+ hours / week">6+ hours / week</option>
-                  </select>
-                </div>
+                <PixelSelect
+                  label="Realistic Weekly Time Contribution:"
+                  value={formData.timeCommitment}
+                  onChange={(val) => setFormData({ ...formData, timeCommitment: val })}
+                  options={[
+                    "1–2 hours / week",
+                    "2–4 hours / week",
+                    "4–6 hours / week",
+                    "6+ hours / week",
+                  ]}
+                />
 
-                <div>
-                  <label className="block text-xs font-bold text-wds-white mb-1.5">
-                    Preferred Team / Wing:
-                  </label>
-                  <select
-                    value={formData.preferredTeam}
-                    onChange={(e) => setFormData({ ...formData, preferredTeam: e.target.value })}
-                    className="w-full p-2.5 bg-wds-bg border border-wds-yellow/40 text-wds-white text-xs outline-none focus:border-wds-yellow"
-                  >
-                    <option value="Technical Wing (Frontend/Backend/Full-Stack)">Technical Wing (Frontend / Backend / Full-Stack)</option>
-                    <option value="Design & UI/UX Wing">Design &amp; UI/UX Wing</option>
-                    <option value="QA & Website Maintenance Wing">QA &amp; Website Maintenance Wing</option>
-                    <option value="Content, Media & Documentation">Content, Media &amp; Documentation</option>
-                    <option value="Events & Community Operations">Events &amp; Community Operations</option>
-                  </select>
-                </div>
+                <PixelSelect
+                  label="Preferred Team / Wing:"
+                  value={formData.preferredTeam}
+                  onChange={(val) => setFormData({ ...formData, preferredTeam: val })}
+                  options={[
+                    { value: "Technical Wing (Frontend/Backend/Full-Stack)", label: "Technical Wing (Frontend / Backend / Full-Stack)" },
+                    { value: "Design & UI/UX Wing", label: "Design & UI/UX Wing" },
+                    { value: "QA & Website Maintenance Wing", label: "QA & Website Maintenance Wing" },
+                    { value: "Content, Media & Documentation", label: "Content, Media & Documentation" },
+                    { value: "Events & Community Operations", label: "Events & Community Operations" },
+                  ]}
+                />
               </div>
 
               <div className="p-4 border border-wds-yellow/40 bg-wds-bg text-xs space-y-2">
                 <div className="font-pixel text-[10px] text-wds-yellow mb-2">&gt; APPLICATION SUMMARY</div>
                 <div className="grid grid-cols-2 gap-2 text-wds-muted">
                   <div>Name: <span className="text-wds-white font-bold">{formData.fullName}</span></div>
-                  <div>Enrollment: <span className="text-wds-white font-bold">{formData.enrollmentNo}</span></div>
+                  <div>Phone/WhatsApp: <span className="text-wds-white font-bold">{formData.phone}</span></div>
+                  <div>Year: <span className="text-wds-white font-bold">{formData.year}</span></div>
                   <div>Branch: <span className="text-wds-white font-bold">{formData.branch}</span></div>
+                  <div>Section/Shift: <span className="text-wds-white font-bold">{formData.section}</span></div>
                   <div>Email: <span className="text-wds-white font-bold">{formData.collegeEmail}</span></div>
                 </div>
                 <div className="pt-2 border-t border-wds-border-dim text-wds-muted">
