@@ -30,8 +30,13 @@ export function getNotionDatabaseId(key: NotionDatabaseKey): string {
       return process.env.NOTION_PROJECTS_DATABASE_ID || process.env.NOTION_WEBSITES_DATABASE_ID || NOTION_DATABASES.PROJECTS || "";
     case "CANDIDATES":
     case "RECRUITMENT":
-      // FORCE the real accessible database ID regardless of outdated Netlify environment variables
-      return "844138cc-a1ea-412c-b56f-4f55282d9fd3";
+      return (
+        process.env.NOTION_CANDIDATES_DATABASE_ID ||
+        process.env.NOTION_RECRUITMENT_DATABASE_ID ||
+        process.env.NOTION_DATABASE_ID ||
+        NOTION_DATABASES.CANDIDATES ||
+        ""
+      );
     case "INTERVIEWS":
       return process.env.NOTION_INTERVIEWS_DATABASE_ID || NOTION_DATABASES.INTERVIEWS || "";
     case "BUGS":
