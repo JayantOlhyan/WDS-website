@@ -30,14 +30,14 @@ export async function submitToNotionDatabase(
   try {
     const notion = new Client({ auth: notionApiKey });
 
-    // Step 1: Duplicate check by Enrollment Number
+    // Step 1: Duplicate check by Phone
     try {
       const existingQuery = await notion.databases.query({
         database_id: notionDatabaseId,
         filter: {
-          property: "Enrollment Number",
-          rich_text: {
-            equals: data.enrollmentNo,
+          property: "Phone",
+          phone_number: {
+            equals: data.phone,
           },
         },
       });
@@ -46,7 +46,7 @@ export async function submitToNotionDatabase(
         return {
           success: false,
           status: "DUPLICATE",
-          message: `An application for enrollment number ${data.enrollmentNo} has already been submitted for WDS 2026.`,
+          message: `An application with phone number ${data.phone} has already been submitted for WDS 2026.`,
         };
       }
     } catch (queryErr) {
@@ -61,10 +61,7 @@ export async function submitToNotionDatabase(
           title: [{ text: { content: data.fullName } }],
         },
         "Enrollment Number": {
-          rich_text: [{ text: { content: data.enrollmentNo } }],
-        },
-        "Year of Study": {
-          select: { name: data.year },
+          rich_text: [{ text: { content: data.year } }],
         },
         "Branch": {
           select: { name: data.branch },
