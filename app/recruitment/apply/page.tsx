@@ -131,15 +131,6 @@ export default function RecruitmentApplyPage() {
         setErrorMsg("Please select at least one interest.");
         return false;
       }
-    } else if (step === 4) {
-      if (!formData.whyWds.trim()) {
-        setErrorMsg("Please tell us why you want to join WDS.");
-        return false;
-      }
-      if (!formData.learningGoal.trim()) {
-        setErrorMsg("Please share one skill you want to become good at.");
-        return false;
-      }
     }
     return true;
   };
@@ -588,10 +579,9 @@ export default function RecruitmentApplyPage() {
 
               <div>
                 <label className="block text-xs font-bold text-wds-white mb-1.5">
-                  1. Why do you want to join WDS? <span className="text-wds-yellow">*</span>
+                  1. Why do you want to join WDS? <span className="text-wds-muted font-normal text-[11px]">(Optional)</span>
                 </label>
                 <textarea
-                  required
                   rows={3}
                   value={formData.whyWds}
                   onChange={(e) => setFormData({ ...formData, whyWds: e.target.value })}
@@ -602,11 +592,10 @@ export default function RecruitmentApplyPage() {
 
               <div>
                 <label className="block text-xs font-bold text-wds-white mb-1.5">
-                  2. What is one skill you want to become genuinely good at during your first year? <span className="text-wds-yellow">*</span>
+                  2. What is one skill you want to become genuinely good at during your first year? <span className="text-wds-muted font-normal text-[11px]">(Optional)</span>
                 </label>
                 <input
                   type="text"
-                  required
                   value={formData.learningGoal}
                   onChange={(e) => setFormData({ ...formData, learningGoal: e.target.value })}
                   placeholder="e.g. Next.js architecture, UI micro-animations, bug hunting, API scaling..."
@@ -615,7 +604,10 @@ export default function RecruitmentApplyPage() {
               </div>
 
               <div className="p-3 border border-wds-yellow/30 bg-wds-bg space-y-2">
-                <div className="font-pixel text-[10px] text-wds-yellow">&gt; REAL-WORLD SCENARIO</div>
+                <div className="font-pixel text-[10px] text-wds-yellow flex items-center justify-between">
+                  <span>&gt; REAL-WORLD SCENARIO</span>
+                  <span className="text-wds-muted font-mono font-normal text-[10px]">(OPTIONAL)</span>
+                </div>
                 <p className="text-xs text-wds-muted leading-relaxed">
                   &quot;A website has gone live. Students report that a button doesn&apos;t work on mobile, one page loads slowly and an image is broken. What would you do?&quot;
                 </p>

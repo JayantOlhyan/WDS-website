@@ -107,19 +107,22 @@ export const recruitmentApplicationSchema = z.object({
   projectLinks: z.string().max(500, "Project links must not exceed 500 characters").optional(),
   whyWds: z
     .string()
-    .min(10, "Please share why you want to join WDS (at least 10 characters)")
     .max(1000, "Your response must not exceed 1000 characters")
-    .trim(),
+    .trim()
+    .optional()
+    .default(""),
   learningGoal: z
     .string()
-    .min(5, "Please share your learning goal (at least 5 characters)")
     .max(500, "Learning goal must not exceed 500 characters")
-    .trim(),
+    .trim()
+    .optional()
+    .default(""),
   scenarioResponse: z
     .string()
-    .min(10, "Please share your approach to the scenario (at least 10 characters)")
     .max(1000, "Response must not exceed 1000 characters")
-    .trim(),
+    .trim()
+    .optional()
+    .default(""),
   timeCommitment: z.enum(TIME_COMMITMENTS),
   preferredTeam: z.enum(WINGS),
   website_hp: z.string().max(0, "Bot submission detected").optional(),
