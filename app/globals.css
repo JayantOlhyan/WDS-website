@@ -229,3 +229,11 @@ body {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* Hide injected Netlify hosting badge overlay */
+[data-netlify-badge],
+.netlify-badge,
+iframe[src*="netlify"],
+#netlify-badge {
+  display: none !important;
+}
