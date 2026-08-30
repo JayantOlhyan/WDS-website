@@ -192,7 +192,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         {
           success: false,
-          error: "Failed to save application to the database. Please try again.",
+          error: `Failed to save application: ${result.error}`,
           code: "PERSISTENCE_ERROR",
         },
         { status: 500 }
