@@ -269,7 +269,7 @@ export default function RecruitmentApplyPage() {
           JOIN THE SOCIETY
         </h1>
         <p className="text-xs sm:text-sm text-wds-muted max-w-xl mx-auto">
-          It's for joining the society, it's for the interviews.
+          It&apos;s for joining the society, it&apos;s for the interviews.
         </p>
       </div>
 
