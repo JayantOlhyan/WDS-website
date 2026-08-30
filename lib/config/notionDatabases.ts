@@ -35,7 +35,7 @@ export function getNotionDatabaseId(key: NotionDatabaseKey): string {
         process.env.NOTION_RECRUITMENT_DATABASE_ID ||
         process.env.NOTION_DATABASE_ID ||
         NOTION_DATABASES.CANDIDATES ||
-        ""
+        "844138cc-a1ea-412c-b56f-4f55282d9fd3"
       );
     case "INTERVIEWS":
       return process.env.NOTION_INTERVIEWS_DATABASE_ID || NOTION_DATABASES.INTERVIEWS || "";
