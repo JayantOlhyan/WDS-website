@@ -309,9 +309,14 @@ export function Footer() {
             &copy; 2026 <span className="text-wds-white font-bold">WEB DEV SOCIETY MSIT</span>. ALL RIGHTS RESERVED.
           </div>
 
-          {/* Middle Badge */}
-          <div className="border border-wds-yellow/50 px-3 py-1 bg-wds-card text-wds-yellow font-pixel text-[10px]">
-            CODE • COLLABORATE • CREATE IMPACT
+          {/* Middle Badge & Admin */}
+          <div className="flex flex-col items-center gap-2">
+            <div className="border border-wds-yellow/50 px-3 py-1 bg-wds-card text-wds-yellow font-pixel text-[10px]">
+              CODE • COLLABORATE • CREATE IMPACT
+            </div>
+            <Link href="/admin" onClick={() => sound.playClick()} className="text-[10px] text-wds-muted hover:text-wds-yellow transition-colors font-mono tracking-widest uppercase">
+              [ Admin Access ]
+            </Link>
           </div>
 
           <div className="flex items-center gap-1.5 text-wds-white font-bold">
