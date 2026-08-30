@@ -132,7 +132,8 @@ export default function RecruitmentApplyPage() {
     return true;
   };
 
-  const handleNext = () => {
+  const handleNext = (e?: React.MouseEvent | React.FormEvent) => {
+    if (e) e.preventDefault();
     if (validateStep(currentStep)) {
       sound.playClick();
       setCurrentStep((prev) => Math.min(prev + 1, 5));
@@ -147,6 +148,11 @@ export default function RecruitmentApplyPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (currentStep < 5) {
+      handleNext(e);
+      return;
+    }
+
     if (!validateStep(currentStep)) return;
 
     setIsSubmitting(true);
