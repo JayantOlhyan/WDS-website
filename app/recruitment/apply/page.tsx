@@ -74,7 +74,7 @@ export default function RecruitmentApplyPage() {
     "UI/UX & Graphic Design",
     "Quality Assurance (QA)",
     "Content Management & Editorial",
-    "PR, Social Media & Marketing",
+    "PR, Social Media & Marketing", 
     "Mobile Applications",
     "DevOps & Infrastructure",
     "AI & Automation",
