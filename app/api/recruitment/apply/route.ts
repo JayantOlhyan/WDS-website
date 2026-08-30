@@ -68,10 +68,11 @@ export async function POST(req: NextRequest) {
     if (!validationResult.success) {
       const errorDetails = validationResult.error.issues.map((e) => ({
         field: e.path.join("."),
-        message: e.message,
+        message: e.message === "Invalid input" ? `Invalid value for ${e.path.join(".")}` : e.message,
       }));
 
-      const primaryErrorMessage = errorDetails[0]?.message || "Validation failed on application form.";
+      const primaryErrorMessage =
+        errorDetails[0]?.message || "Validation failed on application form.";
 
       return NextResponse.json(
         {

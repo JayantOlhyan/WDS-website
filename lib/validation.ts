@@ -21,8 +21,15 @@ export const EXPERIENCE_LEVELS = [
 ] as const;
 
 export const TIME_COMMITMENTS = [
+  "1–2 hours / week",
+  "1-2 hours / week",
   "2–4 hours / week",
+  "2-4 hours / week",
+  "4–6 hours / week",
+  "4-6 hours / week",
   "4–8 hours / week",
+  "4-8 hours / week",
+  "6+ hours / week",
   "8–12 hours / week",
   "12+ hours / week",
 ] as const;
@@ -81,10 +88,10 @@ export const recruitmentApplicationSchema = z.object({
     .regex(/^[0-9]{10}$/, "Phone number must be a valid 10-digit mobile number")
     .trim(),
   interests: z
-    .array(z.string().max(40))
+    .array(z.string().max(60))
     .min(1, "Please select at least one technical or creative interest")
     .max(10, "You can select up to 10 interests"),
-  experienceLevel: z.enum(EXPERIENCE_LEVELS),
+  experienceLevel: z.enum(EXPERIENCE_LEVELS).or(z.string()),
   githubUrl: z
     .string()
     .max(200, "URL too long")
@@ -126,7 +133,7 @@ export const recruitmentApplicationSchema = z.object({
     .optional()
     .default(""),
   timeCommitment: z.enum(TIME_COMMITMENTS),
-  preferredTeam: z.enum(WINGS),
+  preferredTeam: z.enum(WINGS).or(z.string()),
   website_hp: z.string().max(0, "Bot submission detected").optional(),
 });
 
