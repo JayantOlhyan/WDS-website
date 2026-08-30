@@ -240,12 +240,17 @@ export default function RecruitmentApplyPage() {
             </div>
 
             <p className="text-xs text-wds-muted max-w-lg mx-auto">
-              Our review committee will examine your responses. Shortlisted applicants will receive next steps and interview slots via their registered email address.
+              Our review committee will examine your responses. Shortlisted applicants will receive next steps via their registered email address.
+              <br /><br />
+              <span className="text-wds-yellow font-bold">IMPORTANT:</span> Please join our official WhatsApp interview group for updates and interview slots.
             </p>
 
-            <div className="flex flex-wrap items-center justify-center gap-4 pt-4">
-              <PixelButton href="/" variant="primary" size="md">
-                RETURN HOME →
+            <div className="flex flex-col sm:flex-row flex-wrap items-center justify-center gap-4 pt-4">
+              <PixelButton href="https://chat.whatsapp.com/FLba1D7NKMPHjb5v38jxht?mode=gi_t" external variant="primary" size="md">
+                JOIN WHATSAPP GROUP →
+              </PixelButton>
+              <PixelButton href="/" variant="outline" size="md">
+                RETURN HOME
               </PixelButton>
               <PixelButton href="/terminal" variant="outline" size="md">
                 LAUNCH TERMINAL &gt;_

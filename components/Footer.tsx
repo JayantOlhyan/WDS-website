@@ -167,12 +167,11 @@ export function Footer() {
               </div>
               <ul className="space-y-2 text-wds-muted">
                 {[
-                  { name: "WhatsApp", href: "https://chat.whatsapp.com/wds-msit" },
-                  { name: "Instagram", href: "https://instagram.com/wds_msit" },
-                  { name: "LinkedIn", href: "https://linkedin.com/company/wds-msit" },
+                  { name: "WhatsApp", href: "https://chat.whatsapp.com/DoF9SWl4EhP4z95V2mnMYM?mode=gi_t" },
+                  { name: "Instagram", href: "https://www.instagram.com/wdsoc_msit/" },
+                  { name: "LinkedIn", href: "https://www.linkedin.com/company/wd-society" },
                   { name: "GitHub", href: "https://github.com/JayantOlhyan/WDS-website" },
-                  { name: "YouTube", href: "https://youtube.com/@wds-msit" },
-                  { name: "Discord", href: "https://discord.gg/wds-msit" },
+                  { name: "YouTube", href: "https://www.youtube.com/channel/UCjwNSTokjwpRvgD9aDO5zOg" },
                 ].map((item) => (
                   <li key={item.name}>
                     <a
