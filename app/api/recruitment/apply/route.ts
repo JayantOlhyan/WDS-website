@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { submitToNotionDatabase } from "@/lib/notion";
+import { candidatesRepository } from "@/lib/repositories/CandidatesRepository";
 import { recruitmentApplicationSchema } from "@/lib/validation";
 
 // Simple in-memory rate limiter (per-IP window)
@@ -99,26 +99,63 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 4. Submit to Notion with duplicate check
-    const result = await submitToNotionDatabase(validatedData);
+    // 4. Duplicate Check
+    const isDuplicate = await candidatesRepository.checkDuplicateByPhone(validatedData.phone);
+    if (isDuplicate) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: `An application with phone number ${validatedData.phone} has already been submitted for WDS 2026.`,
+          code: "DUPLICATE_APPLICATION",
+        },
+        { status: 409 }
+      );
+    }
+
+    // 5. Team Mapping
+    const WING_MAPPING: Record<string, string> = {
+      "Frontend Wing": "Technical Wing",
+      "Backend Wing": "Technical Wing",
+      "Quality Assurance Wing": "Technical Wing",
+      "UI/UX Wing": "Design Wing",
+      "PR & Social Media Wing": "Media Wing",
+      "Content Management Wing": "Media Wing",
+    };
+    const mappedTeam = WING_MAPPING[validatedData.preferredTeam] || validatedData.preferredTeam;
+
+    // 6. Notes Compilation
+    const notes = [
+      validatedData.interests.length > 0 ? `Interests:\n${validatedData.interests.join(", ")}\n` : "",
+      validatedData.projectLinks ? `Projects & Work:\n${validatedData.projectLinks}\n` : "",
+      validatedData.whyWds ? `Why WDS:\n${validatedData.whyWds}\n` : "",
+      validatedData.learningGoal ? `Learning Goal:\n${validatedData.learningGoal}\n` : "",
+      validatedData.scenarioResponse ? `Scenario Response:\n${validatedData.scenarioResponse}\n` : "",
+    ].filter(Boolean).join("\n");
+
+    // 7. Submit to CandidatesRepository
+    const result = await candidatesRepository.create({
+      fullName: validatedData.fullName,
+      rollNumber: validatedData.enrollmentNo,
+      email: validatedData.collegeEmail,
+      phone: validatedData.phone,
+      branch: validatedData.branch,
+      section: validatedData.section,
+      year: validatedData.year,
+      preferredWing: mappedTeam,
+      experienceLevel: validatedData.experienceLevel,
+      timeCommitment: validatedData.timeCommitment,
+      githubUrl: validatedData.githubUrl,
+      linkedinUrl: validatedData.linkedinUrl,
+      portfolioUrl: validatedData.portfolioUrl,
+      notes: notes,
+    });
 
     if (!result.success) {
-      if (result.status === "DUPLICATE") {
+      if (result.isOffline || result.error === "DATABASE_OFFLINE") {
         return NextResponse.json(
           {
             success: false,
-            error: result.message,
-            code: "DUPLICATE_APPLICATION",
-          },
-          { status: 409 }
-        );
-      }
-
-      if (result.status === "DATABASE_UNCONFIGURED") {
-        return NextResponse.json(
-          {
-            success: false,
-            error: result.message,
+            error: "The society recruitment database is currently being initialized. Please contact hello@wds.msit or try again shortly.",
             code: "DATABASE_UNCONFIGURED",
           },
           { status: 503 }
@@ -128,7 +165,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         {
           success: false,
-          error: result.message,
+          error: "Failed to save application to the database. Please try again.",
           code: "PERSISTENCE_ERROR",
         },
         { status: 500 }
@@ -137,16 +174,17 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: result.message,
-      recordId: result.recordId,
+      message: "Application submitted and recorded successfully.",
+      recordId: result.id,
       code: "APPLICATION_RECORDED",
     });
   } catch (error: unknown) {
     console.error("[Recruitment API Uncaught Error]:", error);
-    const errMessage = error instanceof Error ? error.message : "Internal Server Error";
+    // Don't expose raw server errors to the frontend
     return NextResponse.json(
-      { success: false, error: errMessage, code: "INTERNAL_ERROR" },
+      { success: false, error: "Internal Server Error", code: "INTERNAL_ERROR" },
       { status: 500 }
     );
   }
 }
+

@@ -60,7 +60,7 @@ export class CandidatesRepository {
       const phone = extractPhone(props.Phone || props.PhoneNumber);
       const branch = extractSelect(props.Branch) || "CSE";
       const section = extractRichText(props.Section) || "A";
-      const year = extractSelect(props.Year) || "1st Year";
+      const year = extractSelect(props["Year of Study"] || props.Year) || "1st Year";
       const preferredWing = extractSelect(props["Preferred Team"] || props["Preferred Wing"]) || "Technical Wing";
       const experienceLevel = extractSelect(props["Experience Level"]) || "Beginner";
       const timeCommitment = extractSelect(props["Time Commitment"]) || "4-8 hrs";
@@ -146,6 +146,20 @@ export class CandidatesRepository {
     };
   }
 
+  public async checkDuplicateByPhone(phone: string): Promise<boolean> {
+    const dbId = this.getDbId();
+    if (!dbId) return false;
+
+    try {
+      const result = await queryDatabase(dbId, {
+        filter: { property: "Phone", phone_number: { equals: phone } },
+      });
+      return result.success && result.data && result.data.length > 0;
+    } catch {
+      return false;
+    }
+  }
+
   public async create(input: {
     fullName: string;
     rollNumber: string;
@@ -180,7 +194,7 @@ export class CandidatesRepository {
       Status: buildSelect("RECEIVED"),
     };
 
-    if (input.year) properties.Year = buildSelect(input.year);
+    if (input.year) properties["Year of Study"] = buildSelect(input.year);
     if (input.githubUrl) properties["GitHub URL"] = buildUrl(input.githubUrl);
     if (input.linkedinUrl) properties["LinkedIn URL"] = buildUrl(input.linkedinUrl);
     if (input.portfolioUrl) properties["Portfolio URL"] = buildUrl(input.portfolioUrl);
