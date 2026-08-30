@@ -233,7 +233,14 @@ body {
 /* Hide injected Netlify hosting badge overlay */
 [data-netlify-badge],
 .netlify-badge,
+netlify-badge,
 iframe[src*="netlify"],
-#netlify-badge {
+#netlify-badge,
+div[style*="z-index: 2147483647"] > a[href^="https://www.netlify.com"],
+a[href^="https://www.netlify.com"] img[src*="netlify"] {
   display: none !important;
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  z-index: -9999 !important;
 }
