@@ -225,7 +225,7 @@ export function InteractiveTerminal({
       newLines.push({
         id: `out-${Date.now()}`,
         type: "output",
-        text: "WDS Wings: Technical Wing, Design & UI/UX Wing, Content & Media, Events & Community Operations. Type 'team-view' or visit /team to view roles.",
+        text: "WDS Wings: Frontend Wing, Backend Wing, UI/UX Wing, Quality Assurance Wing, Content Management Wing, PR & Social Media Wing. Type 'team-view' or visit /team to view roles.",
       });
     } else if (cmd === "clear") {
       setHistory([]);

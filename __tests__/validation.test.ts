@@ -11,7 +11,7 @@ describe("Recruitment Application Zod Schema Validation", () => {
     phone: "9876543210",
     interests: ["Next.js", "TypeScript"],
     experienceLevel: "Some Projects",
-    preferredTeam: "Technical Wing",
+    preferredTeam: "Frontend Wing",
     timeCommitment: "4–8 hours / week",
     whyWds: "I want to build real digital platforms with WDS.",
     learningGoal: "Master full-stack Next.js and open source.",

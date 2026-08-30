@@ -28,10 +28,12 @@ export const TIME_COMMITMENTS = [
 ] as const;
 
 export const WINGS = [
-  "Technical Wing",
-  "Design & UI/UX Wing",
-  "Content & Editorial Wing",
-  "Events & Operations Wing",
+  "Frontend Wing",
+  "Backend Wing",
+  "UI/UX Wing",
+  "Quality Assurance Wing",
+  "Content Management Wing",
+  "PR & Social Media Wing",
 ] as const;
 
 export const TASK_PRIORITIES = ["HIGH", "MEDIUM", "LOW"] as const;

@@ -57,7 +57,7 @@ const INITIAL_FORM: FormData = {
   learningGoal: "",
   scenarioResponse: "",
   timeCommitment: "2–4 hours / week",
-  preferredTeam: "Technical Wing",
+  preferredTeam: "Frontend Wing",
 };
 
 export default function RecruitmentApplyPage() {
@@ -69,18 +69,15 @@ export default function RecruitmentApplyPage() {
   const [recordId, setRecordId] = useState<string | null>(null);
 
   const interestOptions = [
-    "Frontend",
-    "Backend",
-    "Full Stack",
-    "UI/UX Design",
-    "QA / Website Maintenance",
+    "Frontend Development",
+    "Backend Development",
+    "UI/UX & Graphic Design",
+    "Quality Assurance (QA)",
+    "Content Management & Editorial",
+    "PR, Social Media & Marketing",
+    "Mobile Applications",
+    "DevOps & Infrastructure",
     "AI & Automation",
-    "Mobile Apps",
-    "DevOps & Cloud",
-    "SEO & Web Performance",
-    "Content & Technical Writing",
-    "Social Media & Design",
-    "Events & Community Operations",
   ];
 
   const toggleInterest = (interest: string) => {
@@ -648,11 +645,12 @@ export default function RecruitmentApplyPage() {
                   value={formData.preferredTeam}
                   onChange={(val) => setFormData({ ...formData, preferredTeam: val })}
                   options={[
-                    { value: "Technical Wing (Frontend/Backend/Full-Stack)", label: "Technical Wing (Frontend / Backend / Full-Stack)" },
-                    { value: "Design & UI/UX Wing", label: "Design & UI/UX Wing" },
-                    { value: "QA & Website Maintenance Wing", label: "QA & Website Maintenance Wing" },
-                    { value: "Content, Media & Documentation", label: "Content, Media & Documentation" },
-                    { value: "Events & Community Operations", label: "Events & Community Operations" },
+                    "Frontend Wing",
+                    "Backend Wing",
+                    "UI/UX Wing",
+                    "Quality Assurance Wing",
+                    "Content Management Wing",
+                    "PR & Social Media Wing",
                   ]}
                 />
               </div>
