@@ -102,16 +102,28 @@ export default function RecruitmentApplyPage() {
         setErrorMsg("Please enter your Full Name.");
         return false;
       }
-      if (!formData.phone.trim() || formData.phone.trim().length < 8) {
-        setErrorMsg("Please enter a valid Phone / WhatsApp number.");
+      if (!formData.phone.trim()) {
+        setErrorMsg("Please enter your Phone / WhatsApp number.");
         return false;
       }
-      if (!formData.collegeEmail.trim() || !formData.collegeEmail.includes("@")) {
-        setErrorMsg("Please enter a valid Email address.");
+      if (!/^[0-9]{10}$/.test(formData.phone.trim())) {
+        setErrorMsg("Phone / WhatsApp number must be exactly 10 digits.");
+        return false;
+      }
+      if (!formData.year.trim()) {
+        setErrorMsg("Please select your Year of Study.");
+        return false;
+      }
+      if (!formData.branch.trim()) {
+        setErrorMsg("Please select your Branch.");
         return false;
       }
       if (!formData.section.trim()) {
         setErrorMsg("Please enter your Section / Shift.");
+        return false;
+      }
+      if (!formData.collegeEmail.trim() || !formData.collegeEmail.includes("@")) {
+        setErrorMsg("Please enter a valid Email address.");
         return false;
       }
     } else if (step === 2) {
@@ -318,10 +330,15 @@ export default function RecruitmentApplyPage() {
                     : "bg-wds-card/40 text-wds-muted/50"
                 }`}
                 onClick={() => {
-                  if (isCompleted) {
+                  if (st.num < currentStep) {
                     sound.playClick();
                     setErrorMsg(null);
                     setCurrentStep(st.num);
+                  } else if (st.num > currentStep) {
+                    if (validateStep(currentStep)) {
+                      sound.playClick();
+                      setCurrentStep(st.num);
+                    }
                   }
                 }}
               >
@@ -372,16 +389,21 @@ export default function RecruitmentApplyPage() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-wds-white mb-1.5">
-                    Phone / WhatsApp Number <span className="text-wds-yellow">*</span>
+                  <label className="block text-xs font-bold text-wds-white mb-1.5 flex items-center justify-between">
+                    <span>Phone / WhatsApp Number <span className="text-wds-yellow">*</span></span>
+                    <span className="text-[10px] font-normal text-wds-muted">({formData.phone.length}/10 digits)</span>
                   </label>
                   <input
                     type="tel"
                     required
+                    maxLength={10}
                     value={formData.phone}
-                    onChange={(e) => setFormData({ ...formData, phone: e.target.value, enrollmentNo: e.target.value })}
-                    placeholder="e.g. +91 9876543210"
-                    className="w-full p-2.5 bg-wds-bg border border-wds-yellow/40 text-wds-white text-xs outline-none focus:border-wds-yellow"
+                    onChange={(e) => {
+                      const digitsOnly = e.target.value.replace(/[^0-9]/g, "").slice(0, 10);
+                      setFormData({ ...formData, phone: digitsOnly, enrollmentNo: digitsOnly });
+                    }}
+                    placeholder="e.g. 9876543210"
+                    className="w-full p-2.5 bg-wds-bg border border-wds-yellow/40 text-wds-white text-xs outline-none focus:border-wds-yellow font-mono"
                   />
                 </div>
 
