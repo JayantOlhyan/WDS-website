@@ -63,6 +63,9 @@ export async function submitToNotionDatabase(
         "Enrollment Number": {
           rich_text: [{ text: { content: data.enrollmentNo } }],
         },
+        "Year of Study": {
+          select: { name: data.year },
+        },
         "Branch": {
           select: { name: data.branch },
         },
