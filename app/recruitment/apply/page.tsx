@@ -260,31 +260,68 @@ export default function RecruitmentApplyPage() {
       </div>
 
       {/* Progress HUD Bar */}
-      <div className="mb-6 p-3 border-2 border-wds-yellow bg-wds-card shadow-pixel-yellow flex items-center justify-between font-pixel text-xs gap-3">
-        <div className="flex items-center gap-2 text-wds-yellow shrink-0">
-          <span>STEP</span>
-          <span className="px-2 py-0.5 bg-wds-yellow text-wds-bg font-bold whitespace-nowrap">
-            0{currentStep} / 05
-          </span>
+      <div className="mb-6 border-2 border-wds-yellow bg-wds-card shadow-pixel-yellow overflow-hidden relative">
+        {/* Top Header HUD Row */}
+        <div className="p-3 bg-wds-bg/90 border-b border-wds-yellow/30 flex items-center justify-between gap-3 font-pixel text-xs">
+          <div className="flex items-center gap-2 text-wds-yellow">
+            <span className="animate-pulse">&gt;_</span>
+            <span className="text-wds-muted hidden sm:inline-block text-[11px]">APPLICATION STAGE:</span>
+            <span className="px-2.5 py-0.5 bg-wds-yellow text-wds-bg font-bold whitespace-nowrap">
+              0{currentStep} / 05
+            </span>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <span className="text-[10px] text-wds-muted font-mono tracking-widest hidden xs:inline-block">
+              PROGRESS: <span className="text-wds-yellow font-bold">{currentStep * 20}%</span>
+            </span>
+            <div className="w-24 sm:w-36 h-2.5 bg-wds-bg border border-wds-yellow p-0.5 flex gap-0.5">
+              {[1, 2, 3, 4, 5].map((s) => (
+                <div
+                  key={s}
+                  className={`h-full flex-1 transition-all duration-300 ${
+                    s <= currentStep ? "bg-wds-yellow" : "bg-wds-yellow/10"
+                  }`}
+                />
+              ))}
+            </div>
+          </div>
         </div>
 
-        <div className="hidden md:flex items-center gap-2.5 text-[10px] text-wds-muted shrink-0">
-          <span className={`whitespace-nowrap ${currentStep === 1 ? "text-wds-yellow font-bold" : ""}`}>01 INFO</span>
-          <span>&gt;</span>
-          <span className={`whitespace-nowrap ${currentStep === 2 ? "text-wds-yellow font-bold" : ""}`}>02 INTERESTS</span>
-          <span>&gt;</span>
-          <span className={`whitespace-nowrap ${currentStep === 3 ? "text-wds-yellow font-bold" : ""}`}>03 EXPERIENCE</span>
-          <span>&gt;</span>
-          <span className={`whitespace-nowrap ${currentStep === 4 ? "text-wds-yellow font-bold" : ""}`}>04 MINDSET</span>
-          <span>&gt;</span>
-          <span className={`whitespace-nowrap ${currentStep === 5 ? "text-wds-yellow font-bold" : ""}`}>05 CONFIRM</span>
-        </div>
-
-        <div className="w-24 sm:w-36 h-2 bg-wds-bg border border-wds-yellow shrink-0">
-          <div
-            className="h-full bg-wds-yellow transition-all duration-300"
-            style={{ width: `${(currentStep / 5) * 100}%` }}
-          />
+        {/* Stepper Tabs Grid */}
+        <div className="grid grid-cols-5 divide-x divide-wds-yellow/20 text-center font-pixel text-[10px] sm:text-xs">
+          {[
+            { num: 1, label: "01 INFO" },
+            { num: 2, label: "02 INTERESTS" },
+            { num: 3, label: "03 EXPERIENCE" },
+            { num: 4, label: "04 MINDSET" },
+            { num: 5, label: "05 CONFIRM" },
+          ].map((st) => {
+            const isActive = currentStep === st.num;
+            const isCompleted = currentStep > st.num;
+            return (
+              <div
+                key={st.num}
+                className={`py-2.5 px-1 transition-all flex items-center justify-center gap-1.5 select-none ${
+                  isActive
+                    ? "bg-wds-yellow/20 text-wds-yellow font-bold border-b-2 border-wds-yellow"
+                    : isCompleted
+                    ? "bg-wds-bg text-wds-white hover:text-wds-yellow cursor-pointer"
+                    : "bg-wds-card/40 text-wds-muted/50"
+                }`}
+                onClick={() => {
+                  if (isCompleted) {
+                    sound.playClick();
+                    setErrorMsg(null);
+                    setCurrentStep(st.num);
+                  }
+                }}
+              >
+                <span className="truncate">{st.label}</span>
+                {isCompleted && <span className="text-wds-green text-[10px] hidden sm:inline">✓</span>}
+              </div>
+            );
+          })}
         </div>
       </div>
 
