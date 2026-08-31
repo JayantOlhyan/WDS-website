@@ -219,6 +219,34 @@ export default function WdsHubPage() {
     }
   };
 
+  const handleAddProject = async (newProject: Omit<SocietyProject, "id">) => {
+    const optimisticId = `project-${Date.now()}`;
+    const optimisticProject: SocietyProject = { id: optimisticId, ...newProject };
+    setProjects((prev) => [optimisticProject, ...prev]);
+
+    try {
+      const res = await fetch("/api/projects", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newProject),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setProjects((prev) =>
+          prev.map((p) => (p.id === optimisticId ? data.data : p))
+        );
+        sound.confirm();
+      } else {
+        setProjects((prev) => prev.filter((p) => p.id !== optimisticId));
+        sound.error();
+      }
+    } catch {
+      setProjects((prev) => prev.filter((p) => p.id !== optimisticId));
+      sound.error();
+    }
+  };
+
   // 4. Bug Mutations
   const handleAddBug = async (newBug: Omit<BugItem, "id">) => {
     const optimisticId = `bug-${Date.now()}`;
@@ -380,7 +408,9 @@ export default function WdsHubPage() {
             />
           )}
 
-          {activeTab === "projects" && <ProjectView projects={projects} />}
+          {activeTab === "projects" && (
+            <ProjectView projects={projects} onAddProject={handleAddProject} />
+          )}
 
           {activeTab === "tasks" && (
             <TaskView

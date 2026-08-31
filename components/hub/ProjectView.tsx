@@ -4,14 +4,34 @@ import React, { useState } from "react";
 import { sound } from "@/lib/soundEffects";
 import { FolderKanban, ExternalLink, Github, Code, CheckCircle, ArrowRight } from "lucide-react";
 import { SocietyProject } from "@/lib/repositories/ProjectRepository";
+import { ProjectModal } from "./ProjectModal";
 
 interface ProjectViewProps {
   projects: SocietyProject[];
   onSelectProject?: (slug: string) => void;
+  onAddProject?: (project: {
+    name: string;
+    description: string;
+    lead: string;
+    wing: string;
+    type: string;
+    techStack: string[];
+    websiteUrl?: string;
+    githubUrl?: string;
+    status: "ACTIVE" | "MAINTENANCE" | "COMPLETED" | "PLANNING";
+  }) => void;
 }
 
-export function ProjectView({ projects, onSelectProject }: ProjectViewProps) {
+export function ProjectView({ projects, onSelectProject, onAddProject }: ProjectViewProps) {
   const [selectedProject, setSelectedProject] = useState<SocietyProject | null>(projects[0] || null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  // Sync selected project if list changes
+  React.useEffect(() => {
+    if (!selectedProject && projects.length > 0) {
+      setSelectedProject(projects[0]);
+    }
+  }, [projects, selectedProject]);
 
   return (
     <div className="space-y-6">
@@ -24,9 +44,24 @@ export function ProjectView({ projects, onSelectProject }: ProjectViewProps) {
           </p>
         </div>
 
-        <div className="p-2 border border-wds-yellow/30 bg-wds-card text-right font-mono text-xs">
-          <div className="text-[9px] text-wds-muted">&gt;_ ACTIVE REPOSITORIES</div>
-          <div className="font-pixel text-[10px] text-wds-green">{projects.length} TRACKED</div>
+        <div className="flex items-center gap-3">
+          {onAddProject && (
+            <button
+              type="button"
+              onClick={() => {
+                sound.playClick();
+                setIsModalOpen(true);
+              }}
+              className="px-3 py-2 border border-wds-yellow bg-wds-card hover:bg-wds-yellow hover:text-wds-bg text-wds-yellow font-pixel text-xs flex items-center gap-1.5 transition-colors"
+            >
+              <span>+ ADD PROJECT</span>
+            </button>
+          )}
+
+          <div className="p-2 border border-wds-yellow/30 bg-wds-card text-right font-mono text-xs">
+            <div className="text-[9px] text-wds-muted">&gt;_ ACTIVE REPOSITORIES</div>
+            <div className="font-pixel text-[10px] text-wds-green">{projects.length} TRACKED</div>
+          </div>
         </div>
       </div>
 
@@ -166,6 +201,12 @@ export function ProjectView({ projects, onSelectProject }: ProjectViewProps) {
           )}
         </div>
       </div>
+
+      <ProjectModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onAddProject={onAddProject || (() => {})}
+      />
     </div>
   );
 }
