@@ -31,6 +31,7 @@ import { HandoverView } from "@/components/hub/HandoverView";
 import { CommandPalette } from "@/components/hub/CommandPalette";
 import { TaskModal } from "@/components/hub/TaskModal";
 import { BugModal } from "@/components/hub/BugModal";
+import { EventModal } from "@/components/hub/EventModal";
 
 export default function WdsHubPage() {
   const [session] = useState<HubUserSession>({
@@ -46,6 +47,7 @@ export default function WdsHubPage() {
   const [notifOpen, setNotifOpen] = useState<boolean>(false);
   const [newTaskModalOpen, setNewTaskModalOpen] = useState<boolean>(false);
   const [newBugModalOpen, setNewBugModalOpen] = useState<boolean>(false);
+  const [newEventModalOpen, setNewEventModalOpen] = useState<boolean>(false);
 
   // Live Data States
   const [tasks, setTasks] = useState<TaskItem[]>([]);
@@ -243,6 +245,34 @@ export default function WdsHubPage() {
       }
     } catch {
       setProjects((prev) => prev.filter((p) => p.id !== optimisticId));
+      sound.error();
+    }
+  };
+
+  const handleCreateEvent = async (newEvent: any) => {
+    const optimisticId = `event-${Date.now()}`;
+    const optimisticEvent = { id: optimisticId, ...newEvent };
+    setEvents((prev) => [optimisticEvent, ...prev]);
+
+    try {
+      const res = await fetch("/api/events", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newEvent),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setEvents((prev) =>
+          prev.map((e) => (e.id === optimisticId ? data.data : e))
+        );
+        sound.confirm();
+      } else {
+        setEvents((prev) => prev.filter((e) => e.id !== optimisticId));
+        sound.error();
+      }
+    } catch {
+      setEvents((prev) => prev.filter((e) => e.id !== optimisticId));
       sound.error();
     }
   };
@@ -448,6 +478,7 @@ export default function WdsHubPage() {
             <EventView
               events={events}
               onUpdateStage={handleUpdateEventStage}
+              onOpenNewEventModal={() => setNewEventModalOpen(true)}
             />
           )}
 
@@ -515,6 +546,12 @@ export default function WdsHubPage() {
         isOpen={newBugModalOpen}
         onClose={() => setNewBugModalOpen(false)}
         onAddBug={handleAddBug}
+      />
+
+      <EventModal
+        isOpen={newEventModalOpen}
+        onClose={() => setNewEventModalOpen(false)}
+        onAddEvent={handleCreateEvent}
       />
     </div>
   );
