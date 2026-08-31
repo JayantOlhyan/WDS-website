@@ -356,9 +356,11 @@ export function RecruitmentView({
                 </span>
               </div>
 
-              {/* Contact info */}
+              {/* Application Details */}
               <div className="space-y-2 text-xs">
-                <div className="p-2.5 bg-wds-bg border border-wds-yellow/20 space-y-1">
+                <div className="p-3 bg-wds-bg border border-wds-yellow/20 space-y-2 font-mono">
+                  <div className="text-[10px] font-pixel text-wds-yellow mb-1.5">&gt;_ CANDIDATE DATA</div>
+                  
                   <div className="flex justify-between">
                     <span className="text-wds-muted">Enrollment No:</span>
                     <span className="font-bold text-wds-white">{selectedCandidate.enrollmentNo}</span>
@@ -367,14 +369,73 @@ export function RecruitmentView({
                     <span className="text-wds-muted">Branch / Section:</span>
                     <span className="text-wds-white">{selectedCandidate.branch} ({selectedCandidate.section})</span>
                   </div>
-                  <div className="flex items-center justify-between pt-1 border-t border-wds-yellow/10">
-                    <span className="text-wds-muted flex items-center gap-1">
-                      <Mail className="w-3 h-3 text-wds-yellow" /> Email:
-                    </span>
+                  <div className="flex justify-between">
+                    <span className="text-wds-muted">Phone:</span>
+                    <span className="text-wds-white">{selectedCandidate.phone || "N/A"}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-wds-muted">Email:</span>
                     <a href={`mailto:${selectedCandidate.collegeEmail}`} className="text-wds-yellow hover:underline">
                       {selectedCandidate.collegeEmail}
                     </a>
                   </div>
+                  <div className="flex justify-between">
+                    <span className="text-wds-muted">Applied Date:</span>
+                    <span className="text-wds-white">{selectedCandidate.appliedDate}</span>
+                  </div>
+
+                  <div className="pt-2 border-t border-wds-yellow/10 space-y-1">
+                    <div className="flex justify-between">
+                      <span className="text-wds-muted">Preferred Wing:</span>
+                      <span className="text-wds-yellow font-bold">{selectedCandidate.preferredTeam}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-wds-muted">Experience Level:</span>
+                      <span className="text-wds-white">{selectedCandidate.experienceLevel}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-wds-muted">Time Commitment:</span>
+                      <span className="text-wds-white">{selectedCandidate.timeCommitment}</span>
+                    </div>
+                  </div>
+
+                  {selectedCandidate.interests && selectedCandidate.interests.length > 0 && (
+                    <div className="pt-2 border-t border-wds-yellow/10">
+                      <span className="text-wds-muted block mb-1">Interests / Focus Areas:</span>
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {selectedCandidate.interests.map((int) => (
+                          <span key={int} className="px-1.5 py-0.5 bg-wds-card border border-wds-border-dim text-[9px] text-wds-white font-mono">
+                            {int}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {(selectedCandidate.githubUrl || selectedCandidate.portfolioUrl) && (
+                    <div className="pt-2 border-t border-wds-yellow/10 flex gap-3">
+                      {selectedCandidate.githubUrl && (
+                        <a
+                          href={selectedCandidate.githubUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-wds-yellow hover:underline flex items-center gap-1 text-[10px]"
+                        >
+                          [GITHUB ↗]
+                        </a>
+                      )}
+                      {selectedCandidate.portfolioUrl && (
+                        <a
+                          href={selectedCandidate.portfolioUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-wds-yellow hover:underline flex items-center gap-1 text-[10px]"
+                        >
+                          [PORTFOLIO ↗]
+                        </a>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
 
