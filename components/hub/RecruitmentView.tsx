@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { sound } from "@/lib/soundEffects";
 import {
   CandidateApplication,
@@ -24,9 +24,23 @@ interface RecruitmentViewProps {
   isOffline?: boolean;
   userRole?: HubRole;
   onRetry?: () => void;
-  onUpdateStatus: (id: string, newStatus: ApplicationStatus) => void;
+  onUpdateStatus: (id: string, newStatus: ApplicationStatus, notes?: string) => void;
   onExportCsv?: () => void;
 }
+
+const parseScorecard = (notesStr?: string) => {
+  if (!notesStr) return { tech: 5, comm: 5, prob: 5, fit: 5 };
+  const match = notesStr.match(/SCORECARD\[tech:(\d+),comm:(\d+),prob:(\d+),fit:(\d+)\]/);
+  if (match) {
+    return {
+      tech: Number(match[1]),
+      comm: Number(match[2]),
+      prob: Number(match[3]),
+      fit: Number(match[4]),
+    };
+  }
+  return { tech: 5, comm: 5, prob: 5, fit: 5 };
+};
 
 export function RecruitmentView({
   applications,
@@ -43,11 +57,25 @@ export function RecruitmentView({
   );
 
   // Scorecard State for Interview Evaluation
-  const [techScore, setTechScore] = useState<number>(4);
-  const [commScore, setCommScore] = useState<number>(4);
-  const [problemScore, setProblemScore] = useState<number>(4);
+  const [techScore, setTechScore] = useState<number>(5);
+  const [commScore, setCommScore] = useState<number>(5);
+  const [problemScore, setProblemScore] = useState<number>(5);
   const [fitScore, setFitScore] = useState<number>(5);
   const [scorecardSubmitted, setScorecardSubmitted] = useState<boolean>(false);
+
+  // Load candidate evaluation when candidate changes
+  useEffect(() => {
+    if (selectedCandidate) {
+      const scorecard = parseScorecard(selectedCandidate.notes);
+      setTechScore(scorecard.tech);
+      setCommScore(scorecard.comm);
+      setProblemScore(scorecard.prob);
+      setFitScore(scorecard.fit);
+      setScorecardSubmitted(
+        Boolean(selectedCandidate.notes && selectedCandidate.notes.includes("SCORECARD"))
+      );
+    }
+  }, [selectedCandidate]);
 
   const canManageRecruitment = userRole === "ADMIN" || userRole === "CORE_TEAM";
 
@@ -259,8 +287,13 @@ export function RecruitmentView({
                         {candidate.fullName}
                       </span>
                     </div>
-                    <div className="text-xs text-wds-muted mt-0.5">
-                      {candidate.branch} • Roll: {candidate.enrollmentNo}
+                    <div className="text-xs text-wds-muted mt-0.5 flex items-center gap-2">
+                      <span>{candidate.branch} • Roll: {candidate.enrollmentNo}</span>
+                      {candidate.notes && candidate.notes.includes("SCORECARD") && (
+                        <span className="px-1 border border-wds-green/50 bg-wds-green/10 text-wds-green font-pixel text-[8px] uppercase tracking-wide">
+                          EVALUATED
+                        </span>
+                      )}
                     </div>
                   </div>
 
@@ -349,51 +382,63 @@ export function RecruitmentView({
               <div className="p-4 bg-wds-bg border-2 border-wds-yellow/40 space-y-3">
                 <div className="font-pixel text-[10px] text-wds-yellow flex items-center gap-1.5">
                   <Star className="w-3.5 h-3.5 text-wds-yellow" />
-                  <span>&gt;_ INTERVIEW EVALUATION SCORECARD (1-5)</span>
+                  <span>&gt;_ INTERVIEW EVALUATION SCORECARD (1-10)</span>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3 text-xs">
                   <div>
-                    <label className="text-[10px] text-wds-muted block mb-1">Technical Skills: {techScore}/5</label>
+                    <label className="text-[10px] text-wds-muted block mb-1">Technical Skills: {techScore}/10</label>
                     <input
                       type="range"
                       min={1}
-                      max={5}
+                      max={10}
                       value={techScore}
-                      onChange={(e) => setTechScore(Number(e.target.value))}
+                      onChange={(e) => {
+                        setTechScore(Number(e.target.value));
+                        setScorecardSubmitted(false);
+                      }}
                       className="w-full accent-wds-yellow cursor-pointer"
                     />
                   </div>
                   <div>
-                    <label className="text-[10px] text-wds-muted block mb-1">Communication: {commScore}/5</label>
+                    <label className="text-[10px] text-wds-muted block mb-1">Communication: {commScore}/10</label>
                     <input
                       type="range"
                       min={1}
-                      max={5}
+                      max={10}
                       value={commScore}
-                      onChange={(e) => setCommScore(Number(e.target.value))}
+                      onChange={(e) => {
+                        setCommScore(Number(e.target.value));
+                        setScorecardSubmitted(false);
+                      }}
                       className="w-full accent-wds-yellow cursor-pointer"
                     />
                   </div>
                   <div>
-                    <label className="text-[10px] text-wds-muted block mb-1">Problem Solving: {problemScore}/5</label>
+                    <label className="text-[10px] text-wds-muted block mb-1">Problem Solving: {problemScore}/10</label>
                     <input
                       type="range"
                       min={1}
-                      max={5}
+                      max={10}
                       value={problemScore}
-                      onChange={(e) => setProblemScore(Number(e.target.value))}
+                      onChange={(e) => {
+                        setProblemScore(Number(e.target.value));
+                        setScorecardSubmitted(false);
+                      }}
                       className="w-full accent-wds-yellow cursor-pointer"
                     />
                   </div>
                   <div>
-                    <label className="text-[10px] text-wds-muted block mb-1">Team Fit / Culture: {fitScore}/5</label>
+                    <label className="text-[10px] text-wds-muted block mb-1">Team Fit / Culture: {fitScore}/10</label>
                     <input
                       type="range"
                       min={1}
-                      max={5}
+                      max={10}
                       value={fitScore}
-                      onChange={(e) => setFitScore(Number(e.target.value))}
+                      onChange={(e) => {
+                        setFitScore(Number(e.target.value));
+                        setScorecardSubmitted(false);
+                      }}
                       className="w-full accent-wds-yellow cursor-pointer"
                     />
                   </div>
@@ -401,13 +446,16 @@ export function RecruitmentView({
 
                 <div className="pt-2 border-t border-wds-yellow/20 flex justify-between items-center text-xs">
                   <span className="font-pixel text-[9px] text-wds-muted">
-                    Total Score: <strong className="text-wds-yellow">{techScore + commScore + problemScore + fitScore} / 20</strong>
+                    Total Score: <strong className="text-wds-yellow">{techScore + commScore + problemScore + fitScore} / 40</strong>
                   </span>
                   <button
                     type="button"
                     onClick={() => {
                       sound.playSuccess();
                       setScorecardSubmitted(true);
+                      const serializedNotes = `SCORECARD[tech:${techScore},comm:${commScore},prob:${problemScore},fit:${fitScore}]`;
+                      onUpdateStatus(selectedCandidate.id, selectedCandidate.status, serializedNotes);
+                      setSelectedCandidate({ ...selectedCandidate, notes: serializedNotes });
                     }}
                     className="px-2.5 py-1 bg-wds-yellow text-wds-bg font-pixel text-[9px] font-bold"
                   >
