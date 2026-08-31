@@ -5,7 +5,7 @@ describe("Candidate Data Privacy & Access Isolation", () => {
   it("strictly isolates candidate evaluations from MEMBER role", () => {
     expect(hasPermission("MEMBER", "recruitment.read")).toBe(false);
     expect(hasPermission("MEMBER", "recruitment.evaluate")).toBe(false);
-    expect(hasPermission("MEMBER", "recruitment.transition")).toBe(false);
+    expect(hasPermission("MEMBER", "recruitment.update")).toBe(false);
     expect(hasPermission("MEMBER", "recruitment.export")).toBe(false);
   });
 

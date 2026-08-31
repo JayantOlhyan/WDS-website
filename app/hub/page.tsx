@@ -221,22 +221,38 @@ export default function WdsHubPage() {
     }
   };
 
-  const handleAddProject = async (newProject: Omit<SocietyProject, "id">) => {
+  const handleAddProject = async (newProject: {
+    name: string;
+    description: string;
+    lead: string;
+    wing: string;
+    type: string;
+    techStack: string[];
+    websiteUrl?: string;
+    githubUrl?: string;
+    status: "ACTIVE" | "MAINTENANCE" | "COMPLETED" | "PLANNING";
+  }) => {
     const optimisticId = `project-${Date.now()}`;
-    const optimisticProject: SocietyProject = { id: optimisticId, ...newProject };
+    const slug = newProject.name.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+    const optimisticProject: SocietyProject = {
+      id: optimisticId,
+      slug,
+      lastUpdated: new Date().toISOString(),
+      ...newProject,
+    };
     setProjects((prev) => [optimisticProject, ...prev]);
 
     try {
       const res = await fetch("/api/projects", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(newProject),
+        body: JSON.stringify({ slug, ...newProject }),
       });
 
       if (res.ok) {
         const data = await res.json();
         setProjects((prev) =>
-          prev.map((p) => (p.id === optimisticId ? data.data : p))
+          prev.map((p) => (p.id === optimisticId ? { ...optimisticProject, ...data.data } : p))
         );
         sound.confirm();
       } else {
