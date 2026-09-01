@@ -16,6 +16,13 @@ import {
   Download,
   Star,
   CheckCircle2,
+  Maximize2,
+  X,
+  Copy,
+  Printer,
+  ExternalLink,
+  FileText,
+  Check,
 } from "lucide-react";
 import { HubRole } from "@/lib/auth";
 
@@ -42,6 +49,114 @@ const parseScorecard = (notesStr?: string) => {
   return { tech: 5, comm: 5, prob: 5, fit: 5 };
 };
 
+export interface NormalizedCandidateData {
+  id: string;
+  fullName: string;
+  enrollmentNo: string;
+  collegeEmail: string;
+  phone: string;
+  branch: string;
+  section: string;
+  year: string;
+  preferredTeam: string;
+  experienceLevel: string;
+  timeCommitment: string;
+  status: ApplicationStatus;
+  appliedDate: string;
+  githubUrl: string;
+  linkedinUrl: string;
+  portfolioUrl: string;
+  interests: string[];
+  whyWds: string;
+  learningGoal: string;
+  scenarioResponse: string;
+  projectLinks: string;
+  cleanNotes: string;
+  rawNotes: string;
+  scorecard: { tech: number; comm: number; prob: number; fit: number };
+  totalScore: number;
+}
+
+export function getNormalizedCandidate(candidate: CandidateApplication): NormalizedCandidateData {
+  const enrollmentNo =
+    candidate.enrollmentNo || (candidate as any).rollNumber || (candidate as any).rollNo || "N/A";
+  const collegeEmail =
+    candidate.collegeEmail || (candidate as any).email || "N/A";
+  const preferredTeam =
+    candidate.preferredTeam || (candidate as any).preferredWing || "Technical Wing";
+  const year =
+    candidate.year || (candidate as any).yearOfStudy || "1st Year";
+  const githubUrl = candidate.githubUrl || (candidate as any).github || "";
+  const linkedinUrl = candidate.linkedinUrl || (candidate as any).linkedin || "";
+  const portfolioUrl = candidate.portfolioUrl || (candidate as any).portfolio || "";
+
+  let whyWds = candidate.whyWds || "";
+  let learningGoal = candidate.learningGoal || "";
+  let scenarioResponse = candidate.scenarioResponse || "";
+  let projectLinks = candidate.projectLinks || "";
+  let interests: string[] = candidate.interests ? [...candidate.interests] : [];
+
+  const rawNotes = candidate.notes || "";
+
+  // Extract Q&A blocks if serialized into notes string
+  if (rawNotes) {
+    if (!whyWds) {
+      const match = rawNotes.match(/Why WDS:\s*\n([\s\S]*?)(?=\n\n|\n[A-Z][a-z\s]+:|$)/i);
+      if (match) whyWds = match[1].trim();
+    }
+    if (!learningGoal) {
+      const match = rawNotes.match(/Learning Goal:\s*\n([\s\S]*?)(?=\n\n|\n[A-Z][a-z\s]+:|$)/i);
+      if (match) learningGoal = match[1].trim();
+    }
+    if (!scenarioResponse) {
+      const match = rawNotes.match(/Scenario Response:\s*\n([\s\S]*?)(?=\n\n|\n\[|\n[A-Z][a-z\s]+:|$)/i);
+      if (match) scenarioResponse = match[1].trim();
+    }
+    if (!projectLinks) {
+      const match = rawNotes.match(/Projects & Work:\s*\n([\s\S]*?)(?=\n\n|\n[A-Z][a-z\s]+:|$)/i);
+      if (match) projectLinks = match[1].trim();
+    }
+    if (interests.length === 0) {
+      const match = rawNotes.match(/Interests:\s*\n([\s\S]*?)(?=\n\n|\n[A-Z][a-z\s]+:|$)/i);
+      if (match) {
+        interests = match[1].split(",").map((s) => s.trim()).filter(Boolean);
+      }
+    }
+  }
+
+  const scorecard = parseScorecard(rawNotes);
+  const totalScore = scorecard.tech + scorecard.comm + scorecard.prob + scorecard.fit;
+  const cleanNotes = rawNotes.replace(/SCORECARD\[.*?\]/, "").trim();
+
+  return {
+    id: candidate.id,
+    fullName: candidate.fullName || "Unnamed Candidate",
+    enrollmentNo,
+    collegeEmail,
+    phone: candidate.phone || "N/A",
+    branch: candidate.branch || "N/A",
+    section: candidate.section || "N/A",
+    year,
+    preferredTeam,
+    experienceLevel: candidate.experienceLevel || "Beginner",
+    timeCommitment: candidate.timeCommitment || "4-8 hrs",
+    status: candidate.status || "RECEIVED",
+    appliedDate: candidate.appliedDate || "N/A",
+    githubUrl,
+    linkedinUrl,
+    portfolioUrl,
+    interests,
+    whyWds,
+    learningGoal,
+    scenarioResponse,
+    projectLinks,
+    cleanNotes,
+    rawNotes,
+    scorecard,
+    totalScore,
+  };
+}
+
 export function RecruitmentView({
   applications,
   isOffline,
@@ -63,6 +178,10 @@ export function RecruitmentView({
   const [fitScore, setFitScore] = useState<number>(5);
   const [scorecardSubmitted, setScorecardSubmitted] = useState<boolean>(false);
 
+  // Full Screen / Full View Modal state
+  const [isFullScreen, setIsFullScreen] = useState<boolean>(false);
+  const [copied, setCopied] = useState<boolean>(false);
+
   // Load candidate evaluation when candidate changes
   useEffect(() => {
     if (selectedCandidate) {
@@ -77,6 +196,17 @@ export function RecruitmentView({
     }
   }, [selectedCandidate]);
 
+  // Handle ESC key to close full screen view modal
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && isFullScreen) {
+        setIsFullScreen(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isFullScreen]);
+
   const canManageRecruitment = userRole === "ADMIN" || userRole === "CORE_TEAM";
 
   const stages: { label: string; value: "ALL" | ApplicationStatus }[] = [
@@ -90,12 +220,13 @@ export function RecruitmentView({
   ];
 
   const filtered = applications.filter((app) => {
-    const matchesStage = activeStage === "ALL" || app.status === activeStage;
+    const norm = getNormalizedCandidate(app);
+    const matchesStage = activeStage === "ALL" || norm.status === activeStage;
     const matchesSearch =
-      app.fullName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      app.enrollmentNo.includes(searchQuery) ||
-      app.branch.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      app.preferredTeam.toLowerCase().includes(searchQuery.toLowerCase());
+      norm.fullName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      norm.enrollmentNo.includes(searchQuery) ||
+      norm.branch.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      norm.preferredTeam.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesStage && matchesSearch;
   });
 
@@ -117,6 +248,68 @@ export function RecruitmentView({
     }
   };
 
+  const handleCopyAllAnswers = () => {
+    if (!selectedCandidate) return;
+    const cData = getNormalizedCandidate(selectedCandidate);
+    const textReport = `================================================
+WDS RECRUITMENT 2026 - CANDIDATE FULL RELEASE
+================================================
+FULL NAME:        ${cData.fullName}
+ENROLLMENT NO:    ${cData.enrollmentNo}
+COLLEGE EMAIL:    ${cData.collegeEmail}
+PHONE / WHATSAPP: ${cData.phone}
+BRANCH/SECTION:   ${cData.branch} (${cData.section})
+YEAR OF STUDY:    ${cData.year}
+PREFERRED WING:   ${cData.preferredTeam}
+EXPERIENCE LEVEL: ${cData.experienceLevel}
+TIME COMMITMENT:  ${cData.timeCommitment}
+STATUS:           ${cData.status}
+APPLIED DATE:     ${cData.appliedDate}
+
+------------------------------------------------
+INTERESTS & FOCUS AREAS
+------------------------------------------------
+${cData.interests.length > 0 ? cData.interests.join(", ") : "None specified"}
+
+------------------------------------------------
+PROFILES & PORTFOLIO LINKS
+------------------------------------------------
+GitHub:    ${cData.githubUrl || "N/A"}
+LinkedIn:  ${cData.linkedinUrl || "N/A"}
+Portfolio: ${cData.portfolioUrl || "N/A"}
+
+================================================
+FULL QUESTION & ANSWER RESPONSES
+================================================
+
+[Q1] Why do you want to join WDS?
+${cData.whyWds || "N/A"}
+
+[Q2] First-Year Skill / Learning Goal:
+${cData.learningGoal || "N/A"}
+
+[Q3] Real-World Mobile / Performance Bug Scenario Response:
+${cData.scenarioResponse || "N/A"}
+
+[Q4] Projects & Work / Portfolio Highlights:
+${cData.projectLinks || "N/A"}
+
+================================================
+INTERVIEW EVALUATION SCORECARD
+================================================
+Technical Skills:  ${cData.scorecard.tech}/10
+Communication:     ${cData.scorecard.comm}/10
+Problem Solving:   ${cData.scorecard.prob}/10
+Team Fit/Culture:  ${cData.scorecard.fit}/10
+TOTAL SCORE:       ${cData.totalScore}/40
+================================================
+`;
+    navigator.clipboard.writeText(textReport);
+    sound.playClick();
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
   if (!canManageRecruitment) {
     return (
       <div className="p-8 border-2 border-wds-yellow bg-wds-card text-center space-y-4 max-w-xl mx-auto my-12 shadow-pixel-yellow">
@@ -133,6 +326,8 @@ export function RecruitmentView({
     );
   }
 
+  const selectedNorm = selectedCandidate ? getNormalizedCandidate(selectedCandidate) : null;
+
   return (
     <div className="space-y-6">
       {/* Top Header */}
@@ -142,7 +337,7 @@ export function RecruitmentView({
             &gt;_ RECRUITMENT 2026 PIPELINE &amp; EVALUATION
           </h1>
           <p className="text-xs text-wds-muted mt-0.5">
-            Manage candidate screening, scorecards, interview decisions, and CSV export.
+            Manage candidate screening, scorecards, full release Q&amp;A responses, and CSV export.
           </p>
         </div>
 
@@ -263,63 +458,66 @@ export function RecruitmentView({
         {/* Candidate List (6 cols) */}
         <div className="lg:col-span-6 space-y-2.5">
           {filtered.length > 0 ? (
-            filtered.map((candidate) => (
-              <div
-                key={candidate.id}
-                onClick={() => {
-                  sound.playClick();
-                  setSelectedCandidate(candidate);
-                  setScorecardSubmitted(false);
-                }}
-                className={`p-4 border-2 bg-wds-card cursor-pointer transition-all ${
-                  selectedCandidate?.id === candidate.id
-                    ? "border-wds-yellow shadow-pixel-yellow"
-                    : "border-wds-yellow/40 hover:border-wds-yellow"
-                }`}
-              >
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-pixel text-[10px] text-wds-yellow">
-                        {candidate.id.slice(0, 10)}
-                      </span>
-                      <span className="font-bold text-sm text-wds-white">
-                        {candidate.fullName}
-                      </span>
-                    </div>
-                    <div className="text-xs text-wds-muted mt-0.5 flex items-center gap-2">
-                      <span>{candidate.branch} • Roll: {candidate.enrollmentNo}</span>
-                      {candidate.notes && candidate.notes.includes("SCORECARD") && (
-                        <span className="px-1 border border-wds-green/50 bg-wds-green/10 text-wds-green font-pixel text-[8px] uppercase tracking-wide">
-                          EVALUATED
+            filtered.map((candidate) => {
+              const norm = getNormalizedCandidate(candidate);
+              return (
+                <div
+                  key={candidate.id}
+                  onClick={() => {
+                    sound.playClick();
+                    setSelectedCandidate(candidate);
+                    setScorecardSubmitted(false);
+                  }}
+                  className={`p-4 border-2 bg-wds-card cursor-pointer transition-all ${
+                    selectedCandidate?.id === candidate.id
+                      ? "border-wds-yellow shadow-pixel-yellow"
+                      : "border-wds-yellow/40 hover:border-wds-yellow"
+                  }`}
+                >
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-pixel text-[10px] text-wds-yellow">
+                          {norm.id.slice(0, 10)}
                         </span>
-                      )}
+                        <span className="font-bold text-sm text-wds-white">
+                          {norm.fullName}
+                        </span>
+                      </div>
+                      <div className="text-xs text-wds-muted mt-0.5 flex items-center gap-2">
+                        <span>{norm.branch} ({norm.section}) • Roll: {norm.enrollmentNo}</span>
+                        {norm.rawNotes && norm.rawNotes.includes("SCORECARD") && (
+                          <span className="px-1 border border-wds-green/50 bg-wds-green/10 text-wds-green font-pixel text-[8px] uppercase tracking-wide">
+                            EVALUATED
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <span
+                        className={`px-2 py-0.5 font-pixel text-[9px] border ${getStatusColor(
+                          norm.status
+                        )}`}
+                      >
+                        {norm.status}
+                      </span>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2">
-                    <span
-                      className={`px-2 py-0.5 font-pixel text-[9px] border ${getStatusColor(
-                        candidate.status
-                      )}`}
-                    >
-                      {candidate.status}
-                    </span>
+                  <div className="flex flex-wrap items-center justify-between gap-2 pt-2.5 mt-2 border-t border-wds-yellow/20 text-xs text-wds-muted">
+                    <div className="flex items-center gap-2">
+                      <span className="text-wds-white font-bold">{norm.preferredTeam}</span>
+                      <span>•</span>
+                      <span>{norm.experienceLevel}</span>
+                    </div>
+                    <div className="text-[10px] text-wds-muted">
+                      Applied: {norm.appliedDate}
+                    </div>
                   </div>
                 </div>
-
-                <div className="flex flex-wrap items-center justify-between gap-2 pt-2.5 mt-2 border-t border-wds-yellow/20 text-xs text-wds-muted">
-                  <div className="flex items-center gap-2">
-                    <span className="text-wds-white font-bold">{candidate.preferredTeam}</span>
-                    <span>•</span>
-                    <span>{candidate.experienceLevel}</span>
-                  </div>
-                  <div className="text-[10px] text-wds-muted">
-                    Applied: {candidate.appliedDate}
-                  </div>
-                </div>
-              </div>
-            ))
+              );
+            })
           ) : (
             <div className="p-8 text-center border-2 border-wds-yellow/30 bg-wds-card space-y-2">
               <div className="font-pixel text-xs text-wds-yellow">
@@ -336,229 +534,687 @@ export function RecruitmentView({
 
         {/* Candidate Detail & Scorecard Drawer (6 cols) */}
         <div className="lg:col-span-6">
-          {selectedCandidate ? (
-            <div className="p-5 border-2 border-wds-yellow bg-wds-card shadow-pixel-yellow space-y-5 sticky top-16">
-              <div className="flex items-center justify-between pb-3 border-b border-wds-yellow/30">
-                <div>
-                  <span className="font-pixel text-[9px] text-wds-yellow">
-                    {selectedCandidate.id.slice(0, 10)}
-                  </span>
-                  <h3 className="font-pixel text-base text-wds-white">
-                    {selectedCandidate.fullName}
-                  </h3>
+          {selectedCandidate && selectedNorm ? (
+            <div className="sticky top-16 space-y-3">
+              {/* Option Bar Above Receipt for Full Screen / Full View & Quick Actions */}
+              <div className="flex items-center justify-between gap-2 p-3 bg-wds-card border-2 border-wds-yellow shadow-pixel-yellow-sm">
+                <div className="flex items-center gap-2 font-pixel text-[10px] text-wds-yellow">
+                  <FileText className="w-3.5 h-3.5" />
+                  <span>CANDIDATE DOSSIER</span>
                 </div>
-                <span
-                  className={`px-2.5 py-1 font-pixel text-[10px] border ${getStatusColor(
-                    selectedCandidate.status
-                  )}`}
-                >
-                  {selectedCandidate.status}
-                </span>
-              </div>
-
-              {/* Application Details */}
-              <div className="space-y-2 text-xs">
-                <div className="p-3 bg-wds-bg border border-wds-yellow/20 space-y-2 font-mono">
-                  <div className="text-[10px] font-pixel text-wds-yellow mb-1.5">&gt;_ CANDIDATE DATA</div>
-                  
-                  <div className="flex justify-between">
-                    <span className="text-wds-muted">Enrollment No:</span>
-                    <span className="font-bold text-wds-white">{selectedCandidate.enrollmentNo}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-wds-muted">Branch / Section:</span>
-                    <span className="text-wds-white">{selectedCandidate.branch} ({selectedCandidate.section})</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-wds-muted">Phone:</span>
-                    <span className="text-wds-white">{selectedCandidate.phone || "N/A"}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-wds-muted">Email:</span>
-                    <a href={`mailto:${selectedCandidate.collegeEmail}`} className="text-wds-yellow hover:underline">
-                      {selectedCandidate.collegeEmail}
-                    </a>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-wds-muted">Applied Date:</span>
-                    <span className="text-wds-white">{selectedCandidate.appliedDate}</span>
-                  </div>
-
-                  <div className="pt-2 border-t border-wds-yellow/10 space-y-1">
-                    <div className="flex justify-between">
-                      <span className="text-wds-muted">Preferred Wing:</span>
-                      <span className="text-wds-yellow font-bold">{selectedCandidate.preferredTeam}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-wds-muted">Experience Level:</span>
-                      <span className="text-wds-white">{selectedCandidate.experienceLevel}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-wds-muted">Time Commitment:</span>
-                      <span className="text-wds-white">{selectedCandidate.timeCommitment}</span>
-                    </div>
-                  </div>
-
-                  {selectedCandidate.interests && selectedCandidate.interests.length > 0 && (
-                    <div className="pt-2 border-t border-wds-yellow/10">
-                      <span className="text-wds-muted block mb-1">Interests / Focus Areas:</span>
-                      <div className="flex flex-wrap gap-1 mt-1">
-                        {selectedCandidate.interests.map((int) => (
-                          <span key={int} className="px-1.5 py-0.5 bg-wds-card border border-wds-border-dim text-[9px] text-wds-white font-mono">
-                            {int}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {(selectedCandidate.githubUrl || selectedCandidate.portfolioUrl) && (
-                    <div className="pt-2 border-t border-wds-yellow/10 flex gap-3">
-                      {selectedCandidate.githubUrl && (
-                        <a
-                          href={selectedCandidate.githubUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-wds-yellow hover:underline flex items-center gap-1 text-[10px]"
-                        >
-                          [GITHUB ↗]
-                        </a>
-                      )}
-                      {selectedCandidate.portfolioUrl && (
-                        <a
-                          href={selectedCandidate.portfolioUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-wds-yellow hover:underline flex items-center gap-1 text-[10px]"
-                        >
-                          [PORTFOLIO ↗]
-                        </a>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Interview Evaluation Scorecard */}
-              <div className="p-4 bg-wds-bg border-2 border-wds-yellow/40 space-y-3">
-                <div className="font-pixel text-[10px] text-wds-yellow flex items-center gap-1.5">
-                  <Star className="w-3.5 h-3.5 text-wds-yellow" />
-                  <span>&gt;_ INTERVIEW EVALUATION SCORECARD (1-10)</span>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3 text-xs">
-                  <div>
-                    <label className="text-[10px] text-wds-muted block mb-1">Technical Skills: {techScore}/10</label>
-                    <input
-                      type="range"
-                      min={1}
-                      max={10}
-                      value={techScore}
-                      onChange={(e) => {
-                        setTechScore(Number(e.target.value));
-                        setScorecardSubmitted(false);
-                      }}
-                      className="w-full accent-wds-yellow cursor-pointer"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-[10px] text-wds-muted block mb-1">Communication: {commScore}/10</label>
-                    <input
-                      type="range"
-                      min={1}
-                      max={10}
-                      value={commScore}
-                      onChange={(e) => {
-                        setCommScore(Number(e.target.value));
-                        setScorecardSubmitted(false);
-                      }}
-                      className="w-full accent-wds-yellow cursor-pointer"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-[10px] text-wds-muted block mb-1">Problem Solving: {problemScore}/10</label>
-                    <input
-                      type="range"
-                      min={1}
-                      max={10}
-                      value={problemScore}
-                      onChange={(e) => {
-                        setProblemScore(Number(e.target.value));
-                        setScorecardSubmitted(false);
-                      }}
-                      className="w-full accent-wds-yellow cursor-pointer"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-[10px] text-wds-muted block mb-1">Team Fit / Culture: {fitScore}/10</label>
-                    <input
-                      type="range"
-                      min={1}
-                      max={10}
-                      value={fitScore}
-                      onChange={(e) => {
-                        setFitScore(Number(e.target.value));
-                        setScorecardSubmitted(false);
-                      }}
-                      className="w-full accent-wds-yellow cursor-pointer"
-                    />
-                  </div>
-                </div>
-
-                <div className="pt-2 border-t border-wds-yellow/20 flex justify-between items-center text-xs">
-                  <span className="font-pixel text-[9px] text-wds-muted">
-                    Total Score: <strong className="text-wds-yellow">{techScore + commScore + problemScore + fitScore} / 40</strong>
-                  </span>
+                <div className="flex items-center gap-1.5">
                   <button
                     type="button"
                     onClick={() => {
-                      sound.playSuccess();
-                      setScorecardSubmitted(true);
-                      const serializedNotes = `SCORECARD[tech:${techScore},comm:${commScore},prob:${problemScore},fit:${fitScore}]`;
-                      onUpdateStatus(selectedCandidate.id, selectedCandidate.status, serializedNotes);
-                      setSelectedCandidate({ ...selectedCandidate, notes: serializedNotes });
+                      sound.playClick();
+                      setIsFullScreen(true);
                     }}
-                    className="px-2.5 py-1 bg-wds-yellow text-wds-bg font-pixel text-[9px] font-bold"
+                    className="px-2.5 py-1 bg-wds-yellow text-wds-bg font-pixel text-[9px] font-bold flex items-center gap-1 hover:bg-wds-yellow-bright transition-colors shadow-sm"
+                    title="Open Full Release View Modal"
                   >
-                    {scorecardSubmitted ? "SAVED ✓" : "SAVE SCORECARD"}
+                    <Maximize2 className="w-3 h-3" />
+                    <span>FULL SCREEN</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleCopyAllAnswers}
+                    className="px-2 py-1 bg-wds-bg border border-wds-yellow/40 text-wds-yellow hover:border-wds-yellow font-pixel text-[9px] flex items-center gap-1 transition-colors"
+                    title="Copy candidate application release to clipboard"
+                  >
+                    {copied ? <Check className="w-3 h-3 text-wds-green" /> : <Copy className="w-3 h-3" />}
+                    <span>{copied ? "COPIED" : "COPY"}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      sound.playClick();
+                      window.print();
+                    }}
+                    className="px-2 py-1 bg-wds-bg border border-wds-yellow/40 text-wds-yellow hover:border-wds-yellow font-pixel text-[9px] flex items-center gap-1 transition-colors"
+                    title="Print Application Release"
+                  >
+                    <Printer className="w-3 h-3" />
+                    <span>PRINT</span>
                   </button>
                 </div>
               </div>
 
-              {/* Status Updater Action */}
-              <div className="pt-2 border-t border-wds-yellow/30 space-y-2">
-                <div className="text-[10px] font-pixel text-wds-yellow">&gt;_ PIPELINE STAGE TRANSITION</div>
-                <div className="grid grid-cols-3 gap-1.5 text-xs font-mono">
-                  {(["SCREENING", "SHORTLISTED", "INTERVIEW", "SELECTED", "REJECTED"] as const).map(
-                    (st) => (
-                      <button
-                        key={st}
-                        type="button"
-                        onClick={() => {
-                          sound.playSuccess();
-                          onUpdateStatus(selectedCandidate.id, st);
-                          setSelectedCandidate({ ...selectedCandidate, status: st });
-                        }}
-                        className={`p-2 border text-center transition-colors text-[9px] font-pixel ${
-                          selectedCandidate.status === st
-                            ? "bg-wds-yellow text-wds-bg font-bold border-wds-yellow"
-                            : "bg-wds-bg border-wds-border-dim text-wds-muted hover:border-wds-yellow hover:text-wds-white"
-                        }`}
-                      >
-                        {st}
-                      </button>
-                    )
+              {/* Receipt Drawer Card */}
+              <div className="p-5 border-2 border-wds-yellow bg-wds-card shadow-pixel-yellow space-y-5">
+                <div className="flex items-center justify-between pb-3 border-b border-wds-yellow/30">
+                  <div>
+                    <span className="font-pixel text-[9px] text-wds-yellow">
+                      {selectedNorm.id.slice(0, 10)}
+                    </span>
+                    <h3 className="font-pixel text-base text-wds-white">
+                      {selectedNorm.fullName}
+                    </h3>
+                  </div>
+                  <span
+                    className={`px-2.5 py-1 font-pixel text-[10px] border ${getStatusColor(
+                      selectedNorm.status
+                    )}`}
+                  >
+                    {selectedNorm.status}
+                  </span>
+                </div>
+
+                {/* Candidate Demographics Data */}
+                <div className="space-y-2 text-xs">
+                  <div className="p-3 bg-wds-bg border border-wds-yellow/20 space-y-2 font-mono">
+                    <div className="text-[10px] font-pixel text-wds-yellow mb-1.5 flex items-center justify-between">
+                      <span>&gt;_ CANDIDATE DEMOGRAPHICS</span>
+                      <span className="text-[9px] text-wds-muted font-mono">{selectedNorm.year}</span>
+                    </div>
+                    
+                    <div className="flex justify-between">
+                      <span className="text-wds-muted">Enrollment No:</span>
+                      <span className="font-bold text-wds-white">{selectedNorm.enrollmentNo}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-wds-muted">Branch / Section:</span>
+                      <span className="text-wds-white">{selectedNorm.branch} ({selectedNorm.section})</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-wds-muted">Phone:</span>
+                      <span className="text-wds-white font-bold">{selectedNorm.phone}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-wds-muted">Email:</span>
+                      <a href={`mailto:${selectedNorm.collegeEmail}`} className="text-wds-yellow hover:underline truncate max-w-[200px]">
+                        {selectedNorm.collegeEmail}
+                      </a>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-wds-muted">Applied Date:</span>
+                      <span className="text-wds-white">{selectedNorm.appliedDate}</span>
+                    </div>
+
+                    <div className="pt-2 border-t border-wds-yellow/10 space-y-1">
+                      <div className="flex justify-between">
+                        <span className="text-wds-muted">Preferred Wing:</span>
+                        <span className="text-wds-yellow font-bold">{selectedNorm.preferredTeam}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-wds-muted">Experience Level:</span>
+                        <span className="text-wds-white">{selectedNorm.experienceLevel}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-wds-muted">Time Commitment:</span>
+                        <span className="text-wds-white">{selectedNorm.timeCommitment}</span>
+                      </div>
+                    </div>
+
+                    {selectedNorm.interests && selectedNorm.interests.length > 0 && (
+                      <div className="pt-2 border-t border-wds-yellow/10">
+                        <span className="text-wds-muted block mb-1">Interests / Focus Areas:</span>
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {selectedNorm.interests.map((int) => (
+                            <span key={int} className="px-1.5 py-0.5 bg-wds-card border border-wds-border-dim text-[9px] text-wds-white font-mono">
+                              {int}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {(selectedNorm.githubUrl || selectedNorm.linkedinUrl || selectedNorm.portfolioUrl) && (
+                      <div className="pt-2 border-t border-wds-yellow/10 flex flex-wrap gap-2">
+                        {selectedNorm.githubUrl && (
+                          <a
+                            href={selectedNorm.githubUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-wds-yellow hover:underline flex items-center gap-1 text-[10px]"
+                          >
+                            [GITHUB ↗]
+                          </a>
+                        )}
+                        {selectedNorm.linkedinUrl && (
+                          <a
+                            href={selectedNorm.linkedinUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-wds-yellow hover:underline flex items-center gap-1 text-[10px]"
+                          >
+                            [LINKEDIN ↗]
+                          </a>
+                        )}
+                        {selectedNorm.portfolioUrl && (
+                          <a
+                            href={selectedNorm.portfolioUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-wds-yellow hover:underline flex items-center gap-1 text-[10px]"
+                          >
+                            [PORTFOLIO ↗]
+                          </a>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Full Question & Answer Responses Section */}
+                <div className="p-3 bg-wds-bg border border-wds-yellow/20 space-y-3 font-mono text-xs">
+                  <div className="font-pixel text-[10px] text-wds-yellow flex items-center justify-between border-b border-wds-yellow/20 pb-2">
+                    <span className="flex items-center gap-1.5">
+                      <FileText className="w-3.5 h-3.5 text-wds-yellow" />
+                      <span>&gt;_ FULL QUESTION &amp; ANSWER RESPONSES</span>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setIsFullScreen(true)}
+                      className="text-[9px] text-wds-yellow hover:underline flex items-center gap-0.5"
+                    >
+                      <span>EXPAND</span>
+                      <Maximize2 className="w-2.5 h-2.5" />
+                    </button>
+                  </div>
+
+                  {/* Q1: Why WDS */}
+                  <div className="space-y-1">
+                    <span className="text-[10px] text-wds-muted font-bold block">
+                      1. Why do you want to join WDS?
+                    </span>
+                    <p className="text-wds-white bg-wds-card/70 p-2.5 border border-wds-border-dim text-[11px] leading-relaxed whitespace-pre-wrap">
+                      {selectedNorm.whyWds || <span className="text-wds-muted italic">No response provided.</span>}
+                    </p>
+                  </div>
+
+                  {/* Q2: Learning Goal */}
+                  <div className="space-y-1">
+                    <span className="text-[10px] text-wds-muted font-bold block">
+                      2. First-Year Skill / Learning Goal:
+                    </span>
+                    <p className="text-wds-white bg-wds-card/70 p-2.5 border border-wds-border-dim text-[11px] leading-relaxed whitespace-pre-wrap">
+                      {selectedNorm.learningGoal || <span className="text-wds-muted italic">No response provided.</span>}
+                    </p>
+                  </div>
+
+                  {/* Q3: Scenario Response */}
+                  <div className="space-y-1">
+                    <span className="text-[10px] text-wds-muted font-bold block">
+                      3. Real-World Mobile / Bug Scenario Response:
+                    </span>
+                    <p className="text-wds-white bg-wds-card/70 p-2.5 border border-wds-border-dim text-[11px] leading-relaxed whitespace-pre-wrap">
+                      {selectedNorm.scenarioResponse || <span className="text-wds-muted italic">No response provided.</span>}
+                    </p>
+                  </div>
+
+                  {/* Q4: Projects & Work */}
+                  <div className="space-y-1">
+                    <span className="text-[10px] text-wds-muted font-bold block">
+                      4. Projects &amp; Work / Tinkered Items:
+                    </span>
+                    <p className="text-wds-white bg-wds-card/70 p-2.5 border border-wds-border-dim text-[11px] leading-relaxed whitespace-pre-wrap">
+                      {selectedNorm.projectLinks || <span className="text-wds-muted italic">No project links provided.</span>}
+                    </p>
+                  </div>
+
+                  {selectedNorm.cleanNotes && (
+                    <div className="space-y-1 pt-1 border-t border-wds-yellow/10">
+                      <span className="text-[10px] text-wds-muted font-bold block">
+                        5. Additional Notes &amp; Raw Submission:
+                      </span>
+                      <p className="text-wds-white bg-wds-card/70 p-2 border border-wds-border-dim text-[10px] leading-relaxed whitespace-pre-wrap font-mono">
+                        {selectedNorm.cleanNotes}
+                      </p>
+                    </div>
                   )}
+                </div>
+
+                {/* Interview Evaluation Scorecard */}
+                <div className="p-4 bg-wds-bg border-2 border-wds-yellow/40 space-y-3">
+                  <div className="font-pixel text-[10px] text-wds-yellow flex items-center gap-1.5">
+                    <Star className="w-3.5 h-3.5 text-wds-yellow" />
+                    <span>&gt;_ INTERVIEW EVALUATION SCORECARD (1-10)</span>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3 text-xs">
+                    <div>
+                      <label className="text-[10px] text-wds-muted block mb-1">Technical Skills: {techScore}/10</label>
+                      <input
+                        type="range"
+                        min={1}
+                        max={10}
+                        value={techScore}
+                        onChange={(e) => {
+                          setTechScore(Number(e.target.value));
+                          setScorecardSubmitted(false);
+                        }}
+                        className="w-full accent-wds-yellow cursor-pointer"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] text-wds-muted block mb-1">Communication: {commScore}/10</label>
+                      <input
+                        type="range"
+                        min={1}
+                        max={10}
+                        value={commScore}
+                        onChange={(e) => {
+                          setCommScore(Number(e.target.value));
+                          setScorecardSubmitted(false);
+                        }}
+                        className="w-full accent-wds-yellow cursor-pointer"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] text-wds-muted block mb-1">Problem Solving: {problemScore}/10</label>
+                      <input
+                        type="range"
+                        min={1}
+                        max={10}
+                        value={problemScore}
+                        onChange={(e) => {
+                          setProblemScore(Number(e.target.value));
+                          setScorecardSubmitted(false);
+                        }}
+                        className="w-full accent-wds-yellow cursor-pointer"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] text-wds-muted block mb-1">Team Fit / Culture: {fitScore}/10</label>
+                      <input
+                        type="range"
+                        min={1}
+                        max={10}
+                        value={fitScore}
+                        onChange={(e) => {
+                          setFitScore(Number(e.target.value));
+                          setScorecardSubmitted(false);
+                        }}
+                        className="w-full accent-wds-yellow cursor-pointer"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="pt-2 border-t border-wds-yellow/20 flex justify-between items-center text-xs">
+                    <span className="font-pixel text-[9px] text-wds-muted">
+                      Total Score: <strong className="text-wds-yellow">{techScore + commScore + problemScore + fitScore} / 40</strong>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        sound.playSuccess();
+                        setScorecardSubmitted(true);
+                        const serializedNotes = `SCORECARD[tech:${techScore},comm:${commScore},prob:${problemScore},fit:${fitScore}]`;
+                        onUpdateStatus(selectedCandidate.id, selectedCandidate.status, serializedNotes);
+                        setSelectedCandidate({ ...selectedCandidate, notes: serializedNotes });
+                      }}
+                      className="px-2.5 py-1 bg-wds-yellow text-wds-bg font-pixel text-[9px] font-bold"
+                    >
+                      {scorecardSubmitted ? "SAVED ✓" : "SAVE SCORECARD"}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Status Updater Action */}
+                <div className="pt-2 border-t border-wds-yellow/30 space-y-2">
+                  <div className="text-[10px] font-pixel text-wds-yellow">&gt;_ PIPELINE STAGE TRANSITION</div>
+                  <div className="grid grid-cols-3 gap-1.5 text-xs font-mono">
+                    {(["SCREENING", "SHORTLISTED", "INTERVIEW", "SELECTED", "REJECTED"] as const).map(
+                      (st) => (
+                        <button
+                          key={st}
+                          type="button"
+                          onClick={() => {
+                            sound.playSuccess();
+                            onUpdateStatus(selectedCandidate.id, st);
+                            setSelectedCandidate({ ...selectedCandidate, status: st });
+                          }}
+                          className={`p-2 border text-center transition-colors text-[9px] font-pixel ${
+                            selectedCandidate.status === st
+                              ? "bg-wds-yellow text-wds-bg font-bold border-wds-yellow"
+                              : "bg-wds-bg border-wds-border-dim text-wds-muted hover:border-wds-yellow hover:text-wds-white"
+                          }`}
+                        >
+                          {st}
+                        </button>
+                      )
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
           ) : (
-            <div className="p-8 text-center border-2 border-wds-yellow/30 bg-wds-card text-xs text-wds-muted">
-              Select a candidate from the pipeline to view application details and scorecards.
+            <div className="p-8 text-center border-2 border-wds-yellow/30 bg-wds-card text-xs text-wds-muted sticky top-16">
+              Select a candidate from the pipeline to view application details, full Q&amp;A release, and scorecards.
             </div>
           )}
         </div>
       </div>
+
+      {/* FULL SCREEN / FULL VIEW DOSSIER MODAL */}
+      {isFullScreen && selectedNorm && (
+        <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md p-3 sm:p-6 flex items-center justify-center overflow-y-auto animate-fadeIn font-mono">
+          <div className="border-2 border-wds-yellow bg-wds-card max-w-4xl w-full max-h-[92vh] flex flex-col shadow-pixel-yellow overflow-hidden">
+            {/* Modal Header */}
+            <div className="p-4 bg-wds-bg border-b-2 border-wds-yellow flex items-center justify-between gap-3 shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="p-2 border border-wds-yellow/40 bg-wds-yellow/10 text-wds-yellow hidden sm:block">
+                  <FileText className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="font-pixel text-[10px] text-wds-yellow flex items-center gap-2">
+                    <span>WDS RECRUITMENT 2026</span>
+                    <span>//</span>
+                    <span>CANDIDATE FULL RELEASE DOSSIER</span>
+                  </div>
+                  <h2 className="font-pixel text-lg text-wds-white">
+                    {selectedNorm.fullName}
+                  </h2>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleCopyAllAnswers}
+                  className="px-3 py-1.5 bg-wds-bg border border-wds-yellow/40 hover:border-wds-yellow text-wds-yellow font-pixel text-xs flex items-center gap-1.5 transition-colors"
+                >
+                  {copied ? <Check className="w-3.5 h-3.5 text-wds-green" /> : <Copy className="w-3.5 h-3.5" />}
+                  <span className="hidden sm:inline">{copied ? "COPIED" : "COPY TEXT"}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => window.print()}
+                  className="px-3 py-1.5 bg-wds-yellow text-wds-bg font-pixel text-xs font-bold flex items-center gap-1.5 hover:bg-wds-yellow-bright transition-colors"
+                >
+                  <Printer className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">PRINT</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setIsFullScreen(false)}
+                  className="p-1.5 border border-wds-yellow/40 hover:border-wds-red text-wds-muted hover:text-wds-red transition-colors"
+                  title="Close Full View (Esc)"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6 overflow-y-auto space-y-6 flex-1 text-xs">
+              {/* Dossier Banner Row */}
+              <div className="p-4 border-2 border-wds-yellow/40 bg-wds-bg flex flex-col sm:flex-row justify-between sm:items-center gap-3">
+                <div>
+                  <div className="text-[10px] text-wds-muted font-pixel">CANDIDATE REF ID</div>
+                  <div className="font-pixel text-sm text-wds-yellow">{selectedNorm.id}</div>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-4 text-xs">
+                  <div>
+                    <span className="text-wds-muted block text-[10px]">CURRENT STAGE:</span>
+                    <span className={`px-2 py-0.5 font-pixel text-[10px] border ${getStatusColor(selectedNorm.status)}`}>
+                      {selectedNorm.status}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-wds-muted block text-[10px]">APPLIED DATE:</span>
+                    <span className="text-wds-white font-bold">{selectedNorm.appliedDate}</span>
+                  </div>
+                  <div>
+                    <span className="text-wds-muted block text-[10px]">TOTAL EVALUATION SCORE:</span>
+                    <span className="font-pixel text-wds-green">{selectedNorm.totalScore} / 40</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Section 1: Demographics & College Details */}
+              <div className="space-y-3">
+                <h3 className="font-pixel text-xs text-wds-yellow border-b border-wds-yellow/30 pb-1.5 flex items-center gap-2">
+                  <span>01. CANDIDATE PROFILE &amp; DEMOGRAPHICS</span>
+                </h3>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                  <div className="p-3 bg-wds-bg border border-wds-yellow/20">
+                    <span className="text-[10px] text-wds-muted block">Full Name</span>
+                    <span className="font-bold text-wds-white text-sm">{selectedNorm.fullName}</span>
+                  </div>
+
+                  <div className="p-3 bg-wds-bg border border-wds-yellow/20">
+                    <span className="text-[10px] text-wds-muted block">Enrollment No / Roll</span>
+                    <span className="font-bold text-wds-white">{selectedNorm.enrollmentNo}</span>
+                  </div>
+
+                  <div className="p-3 bg-wds-bg border border-wds-yellow/20">
+                    <span className="text-[10px] text-wds-muted block">Phone / WhatsApp</span>
+                    <span className="font-bold text-wds-yellow">{selectedNorm.phone}</span>
+                  </div>
+
+                  <div className="p-3 bg-wds-bg border border-wds-yellow/20">
+                    <span className="text-[10px] text-wds-muted block">Email Address</span>
+                    <a href={`mailto:${selectedNorm.collegeEmail}`} className="text-wds-yellow hover:underline font-bold truncate block">
+                      {selectedNorm.collegeEmail}
+                    </a>
+                  </div>
+
+                  <div className="p-3 bg-wds-bg border border-wds-yellow/20">
+                    <span className="text-[10px] text-wds-muted block">Branch &amp; Section</span>
+                    <span className="text-wds-white">{selectedNorm.branch} ({selectedNorm.section})</span>
+                  </div>
+
+                  <div className="p-3 bg-wds-bg border border-wds-yellow/20">
+                    <span className="text-[10px] text-wds-muted block">Year of Study</span>
+                    <span className="text-wds-white">{selectedNorm.year}</span>
+                  </div>
+
+                  <div className="p-3 bg-wds-bg border border-wds-yellow/20">
+                    <span className="text-[10px] text-wds-muted block">Preferred Wing</span>
+                    <span className="text-wds-yellow font-bold">{selectedNorm.preferredTeam}</span>
+                  </div>
+
+                  <div className="p-3 bg-wds-bg border border-wds-yellow/20">
+                    <span className="text-[10px] text-wds-muted block">Experience Level</span>
+                    <span className="text-wds-white">{selectedNorm.experienceLevel}</span>
+                  </div>
+
+                  <div className="p-3 bg-wds-bg border border-wds-yellow/20">
+                    <span className="text-[10px] text-wds-muted block">Weekly Commitment</span>
+                    <span className="text-wds-white">{selectedNorm.timeCommitment}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Section 2: Online Profiles & Work Links */}
+              <div className="space-y-3">
+                <h3 className="font-pixel text-xs text-wds-yellow border-b border-wds-yellow/30 pb-1.5 flex items-center gap-2">
+                  <span>02. ONLINE PROFILES &amp; PORTFOLIO LINKS</span>
+                </h3>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div className="p-3 bg-wds-bg border border-wds-yellow/20">
+                    <span className="text-[10px] text-wds-muted block mb-1">GitHub Profile</span>
+                    {selectedNorm.githubUrl ? (
+                      <a
+                        href={selectedNorm.githubUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-wds-yellow hover:underline flex items-center gap-1 font-bold"
+                      >
+                        <span>{selectedNorm.githubUrl}</span>
+                        <ExternalLink className="w-3 h-3 shrink-0" />
+                      </a>
+                    ) : (
+                      <span className="text-wds-muted italic">Not provided</span>
+                    )}
+                  </div>
+
+                  <div className="p-3 bg-wds-bg border border-wds-yellow/20">
+                    <span className="text-[10px] text-wds-muted block mb-1">LinkedIn Profile</span>
+                    {selectedNorm.linkedinUrl ? (
+                      <a
+                        href={selectedNorm.linkedinUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-wds-yellow hover:underline flex items-center gap-1 font-bold"
+                      >
+                        <span>{selectedNorm.linkedinUrl}</span>
+                        <ExternalLink className="w-3 h-3 shrink-0" />
+                      </a>
+                    ) : (
+                      <span className="text-wds-muted italic">Not provided</span>
+                    )}
+                  </div>
+
+                  <div className="p-3 bg-wds-bg border border-wds-yellow/20">
+                    <span className="text-[10px] text-wds-muted block mb-1">Portfolio Website</span>
+                    {selectedNorm.portfolioUrl ? (
+                      <a
+                        href={selectedNorm.portfolioUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-wds-yellow hover:underline flex items-center gap-1 font-bold"
+                      >
+                        <span>{selectedNorm.portfolioUrl}</span>
+                        <ExternalLink className="w-3 h-3 shrink-0" />
+                      </a>
+                    ) : (
+                      <span className="text-wds-muted italic">Not provided</span>
+                    )}
+                  </div>
+                </div>
+
+                {selectedNorm.interests && selectedNorm.interests.length > 0 && (
+                  <div className="p-3 bg-wds-bg border border-wds-yellow/20">
+                    <span className="text-[10px] text-wds-muted block mb-1.5">Selected Fields of Interest:</span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {selectedNorm.interests.map((int) => (
+                        <span key={int} className="px-2 py-1 bg-wds-yellow/15 border border-wds-yellow/40 text-wds-white text-[10px] font-bold font-mono">
+                          {int}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Section 3: Full Question & Answer Responses */}
+              <div className="space-y-4">
+                <h3 className="font-pixel text-xs text-wds-yellow border-b border-wds-yellow/30 pb-1.5 flex items-center gap-2">
+                  <span>03. FULL APPLICATION FORM RESPONSES</span>
+                </h3>
+
+                <div className="space-y-3">
+                  {/* Q1 */}
+                  <div className="p-4 bg-wds-bg border border-wds-yellow/30 space-y-2">
+                    <div className="font-pixel text-[10px] text-wds-yellow">
+                      QUESTION 01: WHY DO YOU WANT TO JOIN WDS?
+                    </div>
+                    <div className="p-3 bg-wds-card border border-wds-border-dim text-xs text-wds-white leading-relaxed whitespace-pre-wrap">
+                      {selectedNorm.whyWds || <span className="text-wds-muted italic">No response provided in application.</span>}
+                    </div>
+                  </div>
+
+                  {/* Q2 */}
+                  <div className="p-4 bg-wds-bg border border-wds-yellow/30 space-y-2">
+                    <div className="font-pixel text-[10px] text-wds-yellow">
+                      QUESTION 02: WHAT SKILL DO YOU WANT TO MASTER IN YOUR FIRST YEAR?
+                    </div>
+                    <div className="p-3 bg-wds-card border border-wds-border-dim text-xs text-wds-white leading-relaxed whitespace-pre-wrap">
+                      {selectedNorm.learningGoal || <span className="text-wds-muted italic">No response provided in application.</span>}
+                    </div>
+                  </div>
+
+                  {/* Q3 */}
+                  <div className="p-4 bg-wds-bg border border-wds-yellow/30 space-y-2">
+                    <div className="font-pixel text-[10px] text-wds-yellow">
+                      QUESTION 03: REAL-WORLD SCENARIO RESPONSE (MOBILE / PERFORMANCE BUG)
+                    </div>
+                    <div className="text-[10px] text-wds-muted italic">
+                      &quot;A website has gone live. Students report that a button doesn&apos;t work on mobile, one page loads slowly and an image is broken. What would you do?&quot;
+                    </div>
+                    <div className="p-3 bg-wds-card border border-wds-border-dim text-xs text-wds-white leading-relaxed whitespace-pre-wrap">
+                      {selectedNorm.scenarioResponse || <span className="text-wds-muted italic">No response provided in application.</span>}
+                    </div>
+                  </div>
+
+                  {/* Q4 */}
+                  <div className="p-4 bg-wds-bg border border-wds-yellow/30 space-y-2">
+                    <div className="font-pixel text-[10px] text-wds-yellow">
+                      QUESTION 04: PROJECTS &amp; WORK / TINKERED ITEMS
+                    </div>
+                    <div className="p-3 bg-wds-card border border-wds-border-dim text-xs text-wds-white leading-relaxed whitespace-pre-wrap">
+                      {selectedNorm.projectLinks || <span className="text-wds-muted italic">No project links provided in application.</span>}
+                    </div>
+                  </div>
+
+                  {selectedNorm.cleanNotes && (
+                    <div className="p-4 bg-wds-bg border border-wds-yellow/30 space-y-2">
+                      <div className="font-pixel text-[10px] text-wds-yellow">
+                        RAW SUBMISSION LOG &amp; ADDITIONAL NOTES
+                      </div>
+                      <div className="p-3 bg-wds-card border border-wds-border-dim text-xs text-wds-white leading-relaxed whitespace-pre-wrap font-mono">
+                        {selectedNorm.cleanNotes}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Section 4: Evaluation Scorecard Summary */}
+              <div className="space-y-3">
+                <h3 className="font-pixel text-xs text-wds-yellow border-b border-wds-yellow/30 pb-1.5 flex items-center gap-2">
+                  <span>04. INTERVIEW EVALUATION SCORECARD</span>
+                </h3>
+
+                <div className="p-4 bg-wds-bg border-2 border-wds-yellow/40 grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
+                  <div className="p-2 border border-wds-yellow/20 bg-wds-card">
+                    <span className="text-[9px] text-wds-muted block font-pixel">TECHNICAL SKILLS</span>
+                    <span className="font-pixel text-lg text-wds-yellow">{selectedNorm.scorecard.tech} / 10</span>
+                  </div>
+
+                  <div className="p-2 border border-wds-yellow/20 bg-wds-card">
+                    <span className="text-[9px] text-wds-muted block font-pixel">COMMUNICATION</span>
+                    <span className="font-pixel text-lg text-wds-yellow">{selectedNorm.scorecard.comm} / 10</span>
+                  </div>
+
+                  <div className="p-2 border border-wds-yellow/20 bg-wds-card">
+                    <span className="text-[9px] text-wds-muted block font-pixel">PROBLEM SOLVING</span>
+                    <span className="font-pixel text-lg text-wds-yellow">{selectedNorm.scorecard.prob} / 10</span>
+                  </div>
+
+                  <div className="p-2 border border-wds-yellow/20 bg-wds-card">
+                    <span className="text-[9px] text-wds-muted block font-pixel">CULTURE &amp; TEAM FIT</span>
+                    <span className="font-pixel text-lg text-wds-yellow">{selectedNorm.scorecard.fit} / 10</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-4 bg-wds-bg border-t-2 border-wds-yellow flex flex-col sm:flex-row items-center justify-between gap-3 shrink-0">
+              <div className="text-[10px] text-wds-muted font-pixel">
+                PRESS <kbd className="px-1 py-0.5 bg-wds-card border border-wds-yellow/40 text-wds-yellow">ESC</kbd> TO CLOSE RELEASE DOSSIER
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleCopyAllAnswers}
+                  className="px-3 py-1.5 bg-wds-bg border border-wds-yellow/40 text-wds-yellow hover:border-wds-yellow font-pixel text-xs flex items-center gap-1.5 transition-colors"
+                >
+                  {copied ? <Check className="w-3.5 h-3.5 text-wds-green" /> : <Copy className="w-3.5 h-3.5" />}
+                  <span>{copied ? "COPIED" : "COPY TEXT"}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setIsFullScreen(false)}
+                  className="px-4 py-1.5 bg-wds-yellow text-wds-bg font-pixel text-xs font-bold hover:bg-wds-yellow-bright transition-colors"
+                >
+                  CLOSE DOSSIER
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
