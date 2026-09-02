@@ -246,7 +246,7 @@ export default function RecruitmentApplyPage() {
             </p>
 
             <div className="flex flex-col sm:flex-row flex-wrap items-center justify-center gap-4 pt-4">
-              <PixelButton href="https://chat.whatsapp.com/FLba1D7NKMPHjb5v38jxht?mode=gi_t" external variant="primary" size="md">
+              <PixelButton href="https://chat.whatsapp.com/J82shidP976EX2B9YILMJt?s=cl&p=a&mlu=4&ilr=4" external variant="primary" size="md">
                 JOIN WHATSAPP GROUP →
               </PixelButton>
               <PixelButton href="/" variant="outline" size="md">
