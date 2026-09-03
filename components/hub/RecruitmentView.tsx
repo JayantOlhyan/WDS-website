@@ -7,6 +7,13 @@ import {
   ApplicationStatus,
 } from "@/lib/notion/recruitment";
 import {
+  NormalizedCandidateData,
+  getNormalizedCandidate,
+  parseScorecard,
+} from "@/lib/notion/candidateNormalizer";
+export type { NormalizedCandidateData };
+export { getNormalizedCandidate, parseScorecard };
+import {
   Users,
   Search,
   AlertCircle,
@@ -31,130 +38,8 @@ interface RecruitmentViewProps {
   isOffline?: boolean;
   userRole?: HubRole;
   onRetry?: () => void;
-  onUpdateStatus: (id: string, newStatus: ApplicationStatus, notes?: string) => void;
+  onUpdateStatus: (id: string, newStatus: ApplicationStatus, notes?: string) => Promise<boolean | void> | void;
   onExportCsv?: () => void;
-}
-
-const parseScorecard = (notesStr?: string) => {
-  if (!notesStr) return { tech: 5, comm: 5, prob: 5, fit: 5 };
-  const match = notesStr.match(/SCORECARD\[tech:(\d+),comm:(\d+),prob:(\d+),fit:(\d+)\]/);
-  if (match) {
-    return {
-      tech: Number(match[1]),
-      comm: Number(match[2]),
-      prob: Number(match[3]),
-      fit: Number(match[4]),
-    };
-  }
-  return { tech: 5, comm: 5, prob: 5, fit: 5 };
-};
-
-export interface NormalizedCandidateData {
-  id: string;
-  fullName: string;
-  enrollmentNo: string;
-  collegeEmail: string;
-  phone: string;
-  branch: string;
-  section: string;
-  year: string;
-  preferredTeam: string;
-  experienceLevel: string;
-  timeCommitment: string;
-  status: ApplicationStatus;
-  appliedDate: string;
-  githubUrl: string;
-  linkedinUrl: string;
-  portfolioUrl: string;
-  interests: string[];
-  whyWds: string;
-  learningGoal: string;
-  scenarioResponse: string;
-  projectLinks: string;
-  cleanNotes: string;
-  rawNotes: string;
-  scorecard: { tech: number; comm: number; prob: number; fit: number };
-  totalScore: number;
-}
-
-export function getNormalizedCandidate(candidate: CandidateApplication): NormalizedCandidateData {
-  const enrollmentNo =
-    candidate.enrollmentNo || (candidate as any).rollNumber || (candidate as any).rollNo || "N/A";
-  const collegeEmail =
-    candidate.collegeEmail || (candidate as any).email || "N/A";
-  const preferredTeam =
-    candidate.preferredTeam || (candidate as any).preferredWing || "Technical Wing";
-  const year =
-    candidate.year || (candidate as any).yearOfStudy || "1st Year";
-  const githubUrl = candidate.githubUrl || (candidate as any).github || "";
-  const linkedinUrl = candidate.linkedinUrl || (candidate as any).linkedin || "";
-  const portfolioUrl = candidate.portfolioUrl || (candidate as any).portfolio || "";
-
-  let whyWds = candidate.whyWds || "";
-  let learningGoal = candidate.learningGoal || "";
-  let scenarioResponse = candidate.scenarioResponse || "";
-  let projectLinks = candidate.projectLinks || "";
-  let interests: string[] = candidate.interests ? [...candidate.interests] : [];
-
-  const rawNotes = candidate.notes || "";
-
-  // Extract Q&A blocks if serialized into notes string
-  if (rawNotes) {
-    if (!whyWds) {
-      const match = rawNotes.match(/Why WDS:\s*\n([\s\S]*?)(?=\n\n|\n[A-Z][a-z\s]+:|$)/i);
-      if (match) whyWds = match[1].trim();
-    }
-    if (!learningGoal) {
-      const match = rawNotes.match(/Learning Goal:\s*\n([\s\S]*?)(?=\n\n|\n[A-Z][a-z\s]+:|$)/i);
-      if (match) learningGoal = match[1].trim();
-    }
-    if (!scenarioResponse) {
-      const match = rawNotes.match(/Scenario Response:\s*\n([\s\S]*?)(?=\n\n|\n\[|\n[A-Z][a-z\s]+:|$)/i);
-      if (match) scenarioResponse = match[1].trim();
-    }
-    if (!projectLinks) {
-      const match = rawNotes.match(/Projects & Work:\s*\n([\s\S]*?)(?=\n\n|\n[A-Z][a-z\s]+:|$)/i);
-      if (match) projectLinks = match[1].trim();
-    }
-    if (interests.length === 0) {
-      const match = rawNotes.match(/Interests:\s*\n([\s\S]*?)(?=\n\n|\n[A-Z][a-z\s]+:|$)/i);
-      if (match) {
-        interests = match[1].split(",").map((s) => s.trim()).filter(Boolean);
-      }
-    }
-  }
-
-  const scorecard = parseScorecard(rawNotes);
-  const totalScore = scorecard.tech + scorecard.comm + scorecard.prob + scorecard.fit;
-  const cleanNotes = rawNotes.replace(/SCORECARD\[.*?\]/, "").trim();
-
-  return {
-    id: candidate.id,
-    fullName: candidate.fullName || "Unnamed Candidate",
-    enrollmentNo,
-    collegeEmail,
-    phone: candidate.phone || "N/A",
-    branch: candidate.branch || "N/A",
-    section: candidate.section || "N/A",
-    year,
-    preferredTeam,
-    experienceLevel: candidate.experienceLevel || "Beginner",
-    timeCommitment: candidate.timeCommitment || "4-8 hrs",
-    status: candidate.status || "RECEIVED",
-    appliedDate: candidate.appliedDate || "N/A",
-    githubUrl,
-    linkedinUrl,
-    portfolioUrl,
-    interests,
-    whyWds,
-    learningGoal,
-    scenarioResponse,
-    projectLinks,
-    cleanNotes,
-    rawNotes,
-    scorecard,
-    totalScore,
-  };
 }
 
 export function RecruitmentView({
@@ -177,12 +62,25 @@ export function RecruitmentView({
   const [problemScore, setProblemScore] = useState<number>(5);
   const [fitScore, setFitScore] = useState<number>(5);
   const [scorecardSubmitted, setScorecardSubmitted] = useState<boolean>(false);
+  const [isSavingScorecard, setIsSavingScorecard] = useState<boolean>(false);
 
   // Full Screen / Full View Modal state
   const [isFullScreen, setIsFullScreen] = useState<boolean>(false);
   const [copied, setCopied] = useState<boolean>(false);
 
-  // Load candidate evaluation when candidate changes
+  // Keep selectedCandidate synced with parent applications list
+  useEffect(() => {
+    if (selectedCandidate) {
+      const live = applications.find((a) => a.id === selectedCandidate.id);
+      if (live && (live.notes !== selectedCandidate.notes || live.status !== selectedCandidate.status)) {
+        setSelectedCandidate(live);
+      }
+    } else if (applications.length > 0) {
+      setSelectedCandidate(applications[0]);
+    }
+  }, [applications, selectedCandidate]);
+
+  // Load candidate evaluation scores when selected candidate changes
   useEffect(() => {
     if (selectedCandidate) {
       const scorecard = parseScorecard(selectedCandidate.notes);
@@ -705,7 +603,7 @@ TOTAL SCORE:       ${cData.totalScore}/40
                     <button
                       type="button"
                       onClick={() => setIsFullScreen(true)}
-                      className="text-[9px] text-wds-yellow hover:underline flex items-center gap-0.5"
+                      className="text-[9px] text-wds-yellow hover:underline flex items-center gap-0.5 font-bold"
                     >
                       <span>EXPAND</span>
                       <Maximize2 className="w-2.5 h-2.5" />
@@ -718,7 +616,7 @@ TOTAL SCORE:       ${cData.totalScore}/40
                       1. Why do you want to join WDS?
                     </span>
                     <p className="text-wds-white bg-wds-card/70 p-2.5 border border-wds-border-dim text-[11px] leading-relaxed whitespace-pre-wrap">
-                      {selectedNorm.whyWds || <span className="text-wds-muted italic">No response provided.</span>}
+                      {selectedNorm.whyWds || <span className="text-wds-muted italic">No response provided in application.</span>}
                     </p>
                   </div>
 
@@ -728,7 +626,7 @@ TOTAL SCORE:       ${cData.totalScore}/40
                       2. First-Year Skill / Learning Goal:
                     </span>
                     <p className="text-wds-white bg-wds-card/70 p-2.5 border border-wds-border-dim text-[11px] leading-relaxed whitespace-pre-wrap">
-                      {selectedNorm.learningGoal || <span className="text-wds-muted italic">No response provided.</span>}
+                      {selectedNorm.learningGoal || <span className="text-wds-muted italic">No response provided in application.</span>}
                     </p>
                   </div>
 
@@ -738,7 +636,7 @@ TOTAL SCORE:       ${cData.totalScore}/40
                       3. Real-World Mobile / Bug Scenario Response:
                     </span>
                     <p className="text-wds-white bg-wds-card/70 p-2.5 border border-wds-border-dim text-[11px] leading-relaxed whitespace-pre-wrap">
-                      {selectedNorm.scenarioResponse || <span className="text-wds-muted italic">No response provided.</span>}
+                      {selectedNorm.scenarioResponse || <span className="text-wds-muted italic">No response provided in application.</span>}
                     </p>
                   </div>
 
@@ -748,7 +646,7 @@ TOTAL SCORE:       ${cData.totalScore}/40
                       4. Projects &amp; Work / Tinkered Items:
                     </span>
                     <p className="text-wds-white bg-wds-card/70 p-2.5 border border-wds-border-dim text-[11px] leading-relaxed whitespace-pre-wrap">
-                      {selectedNorm.projectLinks || <span className="text-wds-muted italic">No project links provided.</span>}
+                      {selectedNorm.projectLinks || <span className="text-wds-muted italic">No project links provided in application.</span>}
                     </p>
                   </div>
 
@@ -766,14 +664,25 @@ TOTAL SCORE:       ${cData.totalScore}/40
 
                 {/* Interview Evaluation Scorecard */}
                 <div className="p-4 bg-wds-bg border-2 border-wds-yellow/40 space-y-3">
-                  <div className="font-pixel text-[10px] text-wds-yellow flex items-center gap-1.5">
-                    <Star className="w-3.5 h-3.5 text-wds-yellow" />
-                    <span>&gt;_ INTERVIEW EVALUATION SCORECARD (1-10)</span>
+                  <div className="font-pixel text-[10px] text-wds-yellow flex items-center justify-between">
+                    <div className="flex items-center gap-1.5">
+                      <Star className="w-3.5 h-3.5 text-wds-yellow" />
+                      <span>&gt;_ INTERVIEW EVALUATION SCORECARD (1-10)</span>
+                    </div>
+                    {scorecardSubmitted && (
+                      <span className="text-wds-green font-pixel text-[9px] flex items-center gap-1">
+                        <CheckCircle2 className="w-3 h-3" />
+                        <span>SAVED</span>
+                      </span>
+                    )}
                   </div>
 
                   <div className="grid grid-cols-2 gap-3 text-xs">
                     <div>
-                      <label className="text-[10px] text-wds-muted block mb-1">Technical Skills: {techScore}/10</label>
+                      <div className="flex justify-between items-center mb-1">
+                        <label className="text-[10px] text-wds-muted">Technical Skills:</label>
+                        <span className="font-pixel text-[10px] text-wds-yellow">{techScore}/10</span>
+                      </div>
                       <input
                         type="range"
                         min={1}
@@ -783,11 +692,14 @@ TOTAL SCORE:       ${cData.totalScore}/40
                           setTechScore(Number(e.target.value));
                           setScorecardSubmitted(false);
                         }}
-                        className="w-full accent-wds-yellow cursor-pointer"
+                        className="w-full accent-wds-yellow cursor-pointer h-1.5 bg-wds-card"
                       />
                     </div>
                     <div>
-                      <label className="text-[10px] text-wds-muted block mb-1">Communication: {commScore}/10</label>
+                      <div className="flex justify-between items-center mb-1">
+                        <label className="text-[10px] text-wds-muted">Communication:</label>
+                        <span className="font-pixel text-[10px] text-wds-yellow">{commScore}/10</span>
+                      </div>
                       <input
                         type="range"
                         min={1}
@@ -797,11 +709,14 @@ TOTAL SCORE:       ${cData.totalScore}/40
                           setCommScore(Number(e.target.value));
                           setScorecardSubmitted(false);
                         }}
-                        className="w-full accent-wds-yellow cursor-pointer"
+                        className="w-full accent-wds-yellow cursor-pointer h-1.5 bg-wds-card"
                       />
                     </div>
                     <div>
-                      <label className="text-[10px] text-wds-muted block mb-1">Problem Solving: {problemScore}/10</label>
+                      <div className="flex justify-between items-center mb-1">
+                        <label className="text-[10px] text-wds-muted">Problem Solving:</label>
+                        <span className="font-pixel text-[10px] text-wds-yellow">{problemScore}/10</span>
+                      </div>
                       <input
                         type="range"
                         min={1}
@@ -811,11 +726,14 @@ TOTAL SCORE:       ${cData.totalScore}/40
                           setProblemScore(Number(e.target.value));
                           setScorecardSubmitted(false);
                         }}
-                        className="w-full accent-wds-yellow cursor-pointer"
+                        className="w-full accent-wds-yellow cursor-pointer h-1.5 bg-wds-card"
                       />
                     </div>
                     <div>
-                      <label className="text-[10px] text-wds-muted block mb-1">Team Fit / Culture: {fitScore}/10</label>
+                      <div className="flex justify-between items-center mb-1">
+                        <label className="text-[10px] text-wds-muted">Team Fit / Culture:</label>
+                        <span className="font-pixel text-[10px] text-wds-yellow">{fitScore}/10</span>
+                      </div>
                       <input
                         type="range"
                         min={1}
@@ -825,27 +743,56 @@ TOTAL SCORE:       ${cData.totalScore}/40
                           setFitScore(Number(e.target.value));
                           setScorecardSubmitted(false);
                         }}
-                        className="w-full accent-wds-yellow cursor-pointer"
+                        className="w-full accent-wds-yellow cursor-pointer h-1.5 bg-wds-card"
                       />
                     </div>
                   </div>
 
                   <div className="pt-2 border-t border-wds-yellow/20 flex justify-between items-center text-xs">
                     <span className="font-pixel text-[9px] text-wds-muted">
-                      Total Score: <strong className="text-wds-yellow">{techScore + commScore + problemScore + fitScore} / 40</strong>
+                      Total Score: <strong className="text-wds-yellow font-pixel text-xs">{techScore + commScore + problemScore + fitScore} / 40</strong>
                     </span>
                     <button
                       type="button"
-                      onClick={() => {
-                        sound.playSuccess();
-                        setScorecardSubmitted(true);
-                        const serializedNotes = `SCORECARD[tech:${techScore},comm:${commScore},prob:${problemScore},fit:${fitScore}]`;
-                        onUpdateStatus(selectedCandidate.id, selectedCandidate.status, serializedNotes);
-                        setSelectedCandidate({ ...selectedCandidate, notes: serializedNotes });
+                      disabled={isSavingScorecard}
+                      onClick={async () => {
+                        if (!selectedCandidate) return;
+                        sound.playClick();
+                        setIsSavingScorecard(true);
+
+                        const existingCleanNotes = (selectedCandidate.notes || "")
+                          .replace(/SCORECARD\[.*?\]\s*/g, "")
+                          .trim();
+
+                        const serializedScorecard = `SCORECARD[tech:${techScore},comm:${commScore},prob:${problemScore},fit:${fitScore}]`;
+                        const updatedNotes = existingCleanNotes
+                          ? `${existingCleanNotes}\n\n${serializedScorecard}`
+                          : serializedScorecard;
+
+                        try {
+                          await onUpdateStatus(selectedCandidate.id, selectedCandidate.status, updatedNotes);
+                          setSelectedCandidate({ ...selectedCandidate, notes: updatedNotes });
+                          setScorecardSubmitted(true);
+                          sound.playSuccess();
+                        } catch (err) {
+                          console.error("[Save Scorecard Error]:", err);
+                          sound.error();
+                        } finally {
+                          setIsSavingScorecard(false);
+                        }
                       }}
-                      className="px-2.5 py-1 bg-wds-yellow text-wds-bg font-pixel text-[9px] font-bold"
+                      className="px-3 py-1.5 bg-wds-yellow text-wds-bg font-pixel text-[9px] font-bold hover:bg-wds-yellow-bright transition-colors flex items-center gap-1.5 disabled:opacity-50"
                     >
-                      {scorecardSubmitted ? "SAVED ✓" : "SAVE SCORECARD"}
+                      {isSavingScorecard ? (
+                        <span>SAVING...</span>
+                      ) : scorecardSubmitted ? (
+                        <>
+                          <Check className="w-3 h-3 text-wds-bg" />
+                          <span>SAVED ✓</span>
+                        </>
+                      ) : (
+                        <span>SAVE SCORECARD</span>
+                      )}
                     </button>
                   </div>
                 </div>
@@ -861,7 +808,7 @@ TOTAL SCORE:       ${cData.totalScore}/40
                           type="button"
                           onClick={() => {
                             sound.playSuccess();
-                            onUpdateStatus(selectedCandidate.id, st);
+                            onUpdateStatus(selectedCandidate.id, st, selectedCandidate.notes);
                             setSelectedCandidate({ ...selectedCandidate, status: st });
                           }}
                           className={`p-2 border text-center transition-colors text-[9px] font-pixel ${
@@ -899,7 +846,7 @@ TOTAL SCORE:       ${cData.totalScore}/40
                 <div>
                   <div className="font-pixel text-[10px] text-wds-yellow flex items-center gap-2">
                     <span>WDS RECRUITMENT 2026</span>
-                    <span>//</span>
+                    <span>{"//"}</span>
                     <span>CANDIDATE FULL RELEASE DOSSIER</span>
                   </div>
                   <h2 className="font-pixel text-lg text-wds-white">
