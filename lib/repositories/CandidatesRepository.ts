@@ -1,9 +1,12 @@
 import { queryDatabase, createPage, updatePage, getPage } from "../notion/client";
 import { getNotionDatabaseId } from "../config/notionDatabases";
 import {
+  findProp,
   extractTitle,
   extractRichText,
   extractSelect,
+  extractStatus,
+  extractMultiSelect,
   extractEmail,
   extractPhone,
   extractUrl,
@@ -11,6 +14,8 @@ import {
   buildTitle,
   buildRichText,
   buildSelect,
+  buildStatus,
+  buildMultiSelect,
   buildEmail,
   buildPhone,
   buildUrl,
@@ -53,40 +58,105 @@ export class CandidatesRepository {
     }
 
     const candidates: CandidateRecord[] = result.data.map((p: any, idx: number) => {
-      const props = p.properties;
-      const fullName = extractTitle(props["Full Name"] || props.Name, `Candidate #${idx + 1}`);
-      const rollNumber = extractRichText(props["Enrollment Number"] || props["Roll Number"] || props.RollNo);
-      const email = extractEmail(props["College Email"] || props.Email);
-      const phone = extractPhone(props.Phone || props.PhoneNumber);
-      const branch = extractSelect(props.Branch) || "CSE";
-      const section = extractRichText(props.Section) || "A";
-      const year = extractSelect(props["Year of Study"] || props.Year) || "1st Year";
-      const preferredWing = extractSelect(props["Preferred Team"] || props["Preferred Wing"]) || "Technical Wing";
-      const experienceLevel = extractSelect(props["Experience Level"]) || "Beginner";
-      const timeCommitment = extractSelect(props["Time Commitment"]) || "4-8 hrs";
-      const status = (extractSelect(props.Status) || "RECEIVED") as any;
-      const githubUrl = extractUrl(props["GitHub URL"] || props.GitHub);
-      const linkedinUrl = extractUrl(props["LinkedIn URL"] || props.LinkedIn);
-      const portfolioUrl = extractUrl(props["Portfolio URL"] || props.Portfolio);
-      const notes = extractRichText(props.Notes);
+      const props = p.properties || {};
+      const fullName = extractTitle(
+        findProp(props, ["Full Name", "Name", "Candidate Name", "Student Name", "Title"]),
+        `Candidate #${idx + 1}`
+      );
+      const rollNumber = extractRichText(
+        findProp(props, ["Enrollment Number", "Enrollment No", "Enrollment No.", "Enrollment", "Roll Number", "Roll No", "Roll No.", "Roll", "University Roll No", "RollNumber", "EnrollmentNo"])
+      );
+      const email = extractEmail(
+        findProp(props, ["College Email", "Email", "Email Address", "Personal Email", "Email ID", "Mail", "Candidate Email"])
+      );
+      const phone = extractPhone(
+        findProp(props, ["Phone", "PhoneNumber", "Phone Number", "WhatsApp", "WhatsApp Number", "Mobile", "Contact", "Contact Number"])
+      );
+      const branch = extractSelect(
+        findProp(props, ["Branch", "Department", "Stream", "Course"]),
+        "CSE"
+      );
+      const section = extractRichText(
+        findProp(props, ["Section", "Section / Shift", "Shift", "Sec"]),
+        "A"
+      );
+      const year = extractSelect(
+        findProp(props, ["Year of Study", "Year", "Current Year", "Batch"]),
+        "1st Year"
+      );
+      const preferredWing = extractSelect(
+        findProp(props, ["Preferred Team", "Preferred Wing", "Wing", "Team", "Domain", "Preferred Domain", "Wing / Team"]),
+        "Technical Wing"
+      );
+      const experienceLevel = extractSelect(
+        findProp(props, ["Experience Level", "Experience", "Skill Level", "Level"]),
+        "Beginner"
+      );
+      const timeCommitment = extractSelect(
+        findProp(props, ["Time Commitment", "Commitment", "Hours", "Time"]),
+        "4-8 hrs"
+      );
+      const statusRaw = extractStatus(
+        findProp(props, ["Status", "Stage", "Application Status", "State"]),
+        "RECEIVED"
+      );
+      const status = (["RECEIVED", "SCREENING", "SHORTLISTED", "INTERVIEW", "SELECTED", "REJECTED"].includes(statusRaw)
+        ? statusRaw
+        : "RECEIVED") as any;
+
+      const githubUrl = extractUrl(
+        findProp(props, ["GitHub URL", "GitHub", "Github", "Github Profile", "GitHub Profile"])
+      );
+      const linkedinUrl = extractUrl(
+        findProp(props, ["LinkedIn URL", "LinkedIn", "Linkedin", "LinkedIn Profile"])
+      );
+      const portfolioUrl = extractUrl(
+        findProp(props, ["Portfolio URL", "Portfolio", "Website", "Personal Website", "Projects URL"])
+      );
+      const notes = extractRichText(
+        findProp(props, ["Notes", "Note", "Scorecard", "Evaluation", "Comments", "Submission", "Answers", "Responses"])
+      );
+
+      // Dedicated properties if available
+      const whyWds = extractRichText(
+        findProp(props, ["Why WDS", "Why WDS?", "Why do you want to join WDS", "Why WDS Statement", "Why Join"])
+      );
+      const learningGoal = extractRichText(
+        findProp(props, ["Learning Goal", "First Year Skill", "Learning Goals", "Goals", "Skill Goal"])
+      );
+      const scenarioResponse = extractRichText(
+        findProp(props, ["Scenario Response", "Scenario", "Real-World Scenario", "Bug Scenario", "Scenario Answer"])
+      );
+      const projectLinks = extractRichText(
+        findProp(props, ["Projects & Work", "Projects", "Project Links", "Work Highlights", "Past Work", "Portfolio Highlights"])
+      );
+      const rawInterests = extractMultiSelect(
+        findProp(props, ["Interests", "Focus Areas", "Fields of Interest", "Areas of Interest"])
+      );
+
       const interviewsRel = extractRelationIds(props.Interviews);
 
       return {
         id: p.id,
         fullName,
-        rollNumber,
-        email,
-        phone,
+        rollNumber: rollNumber || phone || "N/A",
+        email: email || "N/A",
+        phone: phone || "N/A",
         branch,
         section,
         year,
         preferredWing,
         experienceLevel,
         timeCommitment,
-        status: ["RECEIVED", "SCREENING", "SHORTLISTED", "INTERVIEW", "SELECTED", "REJECTED"].includes(status) ? status : "RECEIVED",
+        status,
         githubUrl,
         linkedinUrl,
         portfolioUrl,
+        projectLinks: projectLinks || undefined,
+        whyWds: whyWds || undefined,
+        learningGoal: learningGoal || undefined,
+        scenarioResponse: scenarioResponse || undefined,
+        interests: rawInterests.length > 0 ? rawInterests : undefined,
         notes,
         interviewsCount: interviewsRel.length,
         appliedDate: new Date(p.created_time).toLocaleDateString(),
@@ -107,32 +177,92 @@ export class CandidatesRepository {
     }
 
     const p = res.data;
-    const props = p.properties;
-    const fullName = extractTitle(props["Full Name"] || props.Name, "Untitled Candidate");
-    const rollNumber = extractRichText(props["Enrollment Number"] || props["Roll Number"]);
-    const email = extractEmail(props["College Email"] || props.Email);
-    const phone = extractPhone(props.Phone);
-    const branch = extractSelect(props.Branch) || "CSE";
-    const section = extractRichText(props.Section) || "A";
-    const preferredWing = extractSelect(props["Preferred Team"] || props["Preferred Wing"]) || "Technical Wing";
-    const experienceLevel = extractSelect(props["Experience Level"]) || "Beginner";
-    const timeCommitment = extractSelect(props["Time Commitment"]) || "4-8 hrs";
-    const status = (extractSelect(props.Status) || "RECEIVED") as any;
-    const githubUrl = extractUrl(props["GitHub URL"] || props.GitHub);
-    const linkedinUrl = extractUrl(props["LinkedIn URL"] || props.LinkedIn);
-    const portfolioUrl = extractUrl(props["Portfolio URL"] || props.Portfolio);
-    const notes = extractRichText(props.Notes);
+    const props = p.properties || {};
+    const fullName = extractTitle(
+      findProp(props, ["Full Name", "Name", "Candidate Name", "Student Name", "Title"]),
+      "Untitled Candidate"
+    );
+    const rollNumber = extractRichText(
+      findProp(props, ["Enrollment Number", "Enrollment No", "Enrollment No.", "Enrollment", "Roll Number", "Roll No", "Roll No.", "Roll", "University Roll No"])
+    );
+    const email = extractEmail(
+      findProp(props, ["College Email", "Email", "Email Address", "Personal Email", "Email ID", "Mail"])
+    );
+    const phone = extractPhone(
+      findProp(props, ["Phone", "PhoneNumber", "Phone Number", "WhatsApp", "WhatsApp Number", "Mobile", "Contact"])
+    );
+    const branch = extractSelect(
+      findProp(props, ["Branch", "Department", "Stream", "Course"]),
+      "CSE"
+    );
+    const section = extractRichText(
+      findProp(props, ["Section", "Section / Shift", "Shift", "Sec"]),
+      "A"
+    );
+    const year = extractSelect(
+      findProp(props, ["Year of Study", "Year", "Current Year", "Batch"]),
+      "1st Year"
+    );
+    const preferredWing = extractSelect(
+      findProp(props, ["Preferred Team", "Preferred Wing", "Wing", "Team", "Domain", "Preferred Domain"]),
+      "Technical Wing"
+    );
+    const experienceLevel = extractSelect(
+      findProp(props, ["Experience Level", "Experience", "Skill Level", "Level"]),
+      "Beginner"
+    );
+    const timeCommitment = extractSelect(
+      findProp(props, ["Time Commitment", "Commitment", "Hours", "Time"]),
+      "4-8 hrs"
+    );
+    const statusRaw = extractStatus(
+      findProp(props, ["Status", "Stage", "Application Status", "State"]),
+      "RECEIVED"
+    );
+    const status = (["RECEIVED", "SCREENING", "SHORTLISTED", "INTERVIEW", "SELECTED", "REJECTED"].includes(statusRaw)
+      ? statusRaw
+      : "RECEIVED") as any;
+
+    const githubUrl = extractUrl(
+      findProp(props, ["GitHub URL", "GitHub", "Github", "Github Profile", "GitHub Profile"])
+    );
+    const linkedinUrl = extractUrl(
+      findProp(props, ["LinkedIn URL", "LinkedIn", "Linkedin", "LinkedIn Profile"])
+    );
+    const portfolioUrl = extractUrl(
+      findProp(props, ["Portfolio URL", "Portfolio", "Website", "Personal Website", "Projects URL"])
+    );
+    const notes = extractRichText(
+      findProp(props, ["Notes", "Note", "Scorecard", "Evaluation", "Comments", "Submission", "Answers", "Responses"])
+    );
+
+    const whyWds = extractRichText(
+      findProp(props, ["Why WDS", "Why WDS?", "Why do you want to join WDS", "Why WDS Statement"])
+    );
+    const learningGoal = extractRichText(
+      findProp(props, ["Learning Goal", "First Year Skill", "Learning Goals", "Goals"])
+    );
+    const scenarioResponse = extractRichText(
+      findProp(props, ["Scenario Response", "Scenario", "Real-World Scenario", "Bug Scenario"])
+    );
+    const projectLinks = extractRichText(
+      findProp(props, ["Projects & Work", "Projects", "Project Links", "Work Highlights", "Past Work"])
+    );
+    const rawInterests = extractMultiSelect(
+      findProp(props, ["Interests", "Focus Areas", "Fields of Interest"])
+    );
 
     return {
       success: true,
       data: {
         id: p.id,
         fullName,
-        rollNumber,
-        email,
-        phone,
+        rollNumber: rollNumber || phone || "N/A",
+        email: email || "N/A",
+        phone: phone || "N/A",
         branch,
         section,
+        year,
         preferredWing,
         experienceLevel,
         timeCommitment,
@@ -140,6 +270,11 @@ export class CandidatesRepository {
         githubUrl,
         linkedinUrl,
         portfolioUrl,
+        whyWds: whyWds || undefined,
+        learningGoal: learningGoal || undefined,
+        scenarioResponse: scenarioResponse || undefined,
+        projectLinks: projectLinks || undefined,
+        interests: rawInterests.length > 0 ? rawInterests : undefined,
         notes,
         createdAt: p.created_time,
       },
@@ -237,22 +372,104 @@ export class CandidatesRepository {
       preferredWing?: string;
     }
   ): Promise<NotionMutationResult<CandidateRecord>> {
-    const properties: Record<string, any> = {};
-
-    if (updates.status !== undefined) properties.Status = buildSelect(updates.status);
-    if (updates.notes !== undefined) properties.Notes = buildRichText(updates.notes);
-    if (updates.preferredWing !== undefined) properties["Preferred Team"] = buildSelect(updates.preferredWing);
-
-    const res = await updatePage(id, properties);
-    if (!res.success) {
-      return { success: false, data: null as any, error: res.error };
+    const dbId = this.getDbId();
+    if (!dbId || id.startsWith("mock-") || id.startsWith("test-")) {
+      return {
+        success: true,
+        data: { id, ...updates } as any,
+        id,
+      };
     }
 
-    return {
-      success: true,
-      data: { id, ...updates } as any,
-      id,
-    };
+    try {
+      // First attempt to get the page to match exact Notion property schemas
+      const pageRes = await getPage(id);
+      const properties: Record<string, any> = {};
+
+      if (pageRes.success && pageRes.data && pageRes.data.properties) {
+        const pageProps = pageRes.data.properties;
+
+        // 1. Status update
+        if (updates.status !== undefined) {
+          const statusPropKey = Object.keys(pageProps).find(
+            (k) =>
+              k.toLowerCase().replace(/[^a-z0-9]/g, "") === "status" ||
+              k.toLowerCase().replace(/[^a-z0-9]/g, "") === "stage"
+          );
+          if (statusPropKey) {
+            const propType = pageProps[statusPropKey]?.type;
+            if (propType === "status") {
+              properties[statusPropKey] = buildStatus(updates.status);
+            } else {
+              properties[statusPropKey] = buildSelect(updates.status);
+            }
+          } else {
+            properties.Status = buildSelect(updates.status);
+          }
+        }
+
+        // 2. Notes update
+        if (updates.notes !== undefined) {
+          const notesPropKey = Object.keys(pageProps).find((k) =>
+            ["notes", "note", "scorecard", "evaluation", "comments", "submission"].includes(
+              k.toLowerCase().replace(/[^a-z0-9]/g, "")
+            )
+          );
+          if (notesPropKey) {
+            properties[notesPropKey] = buildRichText(updates.notes);
+          } else {
+            properties.Notes = buildRichText(updates.notes);
+          }
+        }
+
+        // 3. Preferred Wing update
+        if (updates.preferredWing !== undefined) {
+          const wingPropKey = Object.keys(pageProps).find((k) =>
+            ["preferredteam", "preferredwing", "wing", "team"].includes(
+              k.toLowerCase().replace(/[^a-z0-9]/g, "")
+            )
+          );
+          if (wingPropKey) {
+            const propType = pageProps[wingPropKey]?.type;
+            if (propType === "multi_select") {
+              properties[wingPropKey] = buildMultiSelect([updates.preferredWing]);
+            } else {
+              properties[wingPropKey] = buildSelect(updates.preferredWing);
+            }
+          } else {
+            properties["Preferred Team"] = buildSelect(updates.preferredWing);
+          }
+        }
+      } else {
+        if (updates.status !== undefined) properties.Status = buildSelect(updates.status);
+        if (updates.notes !== undefined) properties.Notes = buildRichText(updates.notes);
+        if (updates.preferredWing !== undefined) properties["Preferred Team"] = buildSelect(updates.preferredWing);
+      }
+
+      const res = await updatePage(id, properties);
+      if (!res.success) {
+        console.error(`[CandidatesRepository.update Error on ${id}]:`, res.error);
+        return {
+          success: false,
+          data: null as any,
+          isOffline: res.isOffline,
+          error: res.error,
+        };
+      }
+
+      return {
+        success: true,
+        data: { id, ...updates } as any,
+        id,
+      };
+    } catch (err: any) {
+      console.error(`[CandidatesRepository.update Exception on ${id}]:`, err);
+      return {
+        success: false,
+        data: null as any,
+        error: err?.message || "UPDATE_FAILED",
+      };
+    }
   }
 }
 
