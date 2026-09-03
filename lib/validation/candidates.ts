@@ -39,13 +39,13 @@ export const candidateApplicationSchema = z.object({
   githubUrl: z.string().url().max(300).optional().or(z.literal("")),
   linkedinUrl: z.string().url().max(300).optional().or(z.literal("")),
   portfolioUrl: z.string().url().max(300).optional().or(z.literal("")),
-  notes: z.string().max(2000).trim().optional(),
+  notes: z.string().max(5000).trim().optional(),
 });
 
 export const updateCandidateSchema = z.object({
   status: applicationStatusSchema.optional(),
   preferredWing: z.string().max(80).optional(),
-  notes: z.string().max(2000).optional(),
+  notes: z.string().max(5000).optional(),
 });
 
 export type CandidateApplicationInput = z.infer<typeof candidateApplicationSchema>;
