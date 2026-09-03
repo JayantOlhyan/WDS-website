@@ -18,6 +18,7 @@ export interface CandidateRecord {
   whyWds?: string;
   learningGoal?: string;
   scenarioResponse?: string;
+  interests?: string[];
   notes?: string;
   interviewsCount?: number;
   appliedDate?: string;
