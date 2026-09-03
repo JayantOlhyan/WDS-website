@@ -347,7 +347,7 @@ export default function WdsHubPage() {
     }
   };
 
-  const handleUpdateCandidateStatus = async (id: string, status: string, notes?: string) => {
+  const handleUpdateCandidateStatus = async (id: string, status: string, notes?: string): Promise<boolean> => {
     try {
       const res = await fetch(`/api/candidates/${id}`, {
         method: "PATCH",
@@ -357,12 +357,25 @@ export default function WdsHubPage() {
 
       if (res.ok) {
         setApplications((prev) =>
-          prev.map((app) => (app.id === id ? { ...app, status: status as any } : app))
+          prev.map((app) =>
+            app.id === id
+              ? {
+                  ...app,
+                  status: status as any,
+                  ...(notes !== undefined ? { notes } : {}),
+                }
+              : app
+          )
         );
         sound.confirm();
+        return true;
+      } else {
+        sound.error();
+        return false;
       }
     } catch {
       sound.error();
+      return false;
     }
   };
 
