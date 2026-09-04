@@ -1,171 +1,276 @@
 # Web Development Society — MSIT (WDS MSIT)
-### Official Digital Ecosystem & WDS Operating System (WDS OS v2.1)
 
-> **Live Production Platform**: [wds-msit.vercel.app](https://wds-msit.vercel.app)  
-> **Official Bug Hunt Platform**: [wds-bug-hunt.netlify.app/bug-hunt](https://wds-bug-hunt.netlify.app/bug-hunt)  
-> **GitHub Repository**: [github.com/JayantOlhyan/WDS-website](https://github.com/JayantOlhyan/WDS-website)
+> The official digital ecosystem and internal operating system for the Web Development Society at MSIT.
 
----
+## Overview
 
-## 1. System Architecture & The "WDS Operating System"
+The WDS MSIT ecosystem unifies the public society identity and an internal operating system into a single cohesive platform. It replaces fragmented WhatsApp chats, scattered spreadsheets, and verbal handoffs with structured, persistent workflows. It consists of a public-facing website and an internal authenticated "Hub" used by society operators to manage recruitment, tasks, and events.
 
-The WDS MSIT ecosystem unifies the public society identity and an internal operating system into a single cohesive platform. It replaces fragmented WhatsApp chats, scattered spreadsheets, and verbal handoffs with structured, persistent workflows.
+## Why This Project Exists
 
+Managing a college tech society typically involves scattered Google Forms, unorganized WhatsApp groups, and lost data during yearly leadership handovers. This project exists to solve the problem of organizational amnesia. By consolidating public recruitment, internal task management, and project tracking into a centralized "WDS Operating System" (WDS OS v2.1), the society maintains continuous operational records, automated workflows, and strict data privacy.
+
+## Features
+
+### Implemented
+- **Public Society Identity:** Landing pages, projects portfolio, opportunities board, and team directory (`app/about`, `app/projects`, `app/team`).
+- **Interactive Terminal UI:** A stylized interactive terminal component (`components/InteractiveTerminal.tsx`).
+- **Recruitment Engine:** Public application forms (`app/recruitment`) ingested securely.
+- **WDS Hub (Internal OS):** Authenticated dashboard for operators (`app/hub`) to manage operations.
+- **Notion Operational Datastore:** Deep integration with 11 core Notion databases (Tasks, Projects, Candidates, Bugs, etc.) serving as a headless CMS and datastore.
+- **Stateless Serverless Authentication:** HMAC-SHA256 signed session cookies supporting multi-region serverless deployments without Redis (`lib/sessionStore.ts`).
+- **Webhook Ingestion:** Secure webhook endpoint for external bug hunt platforms (`lib/webhook.ts`).
+- **Automated Health Checks:** Internal service health monitoring with SSRF protection (`lib/healthChecks.ts`).
+
+### Planned / Not Yet Implemented
+- **Docker/Containerized Deployments:** Currently tightly coupled to Vercel/Serverless paradigms.
+- **Full-Text Global Search:** Planned for the Hub, currently relying on Notion's native search limits.
+
+## Architecture
+
+The system operates strictly within a Serverless environment, leveraging Next.js API routes, a bespoke repository abstraction layer, and Notion as the primary database.
+
+```mermaid
+flowchart TD
+    User([Public Users / Students]) --> PublicUI[Public Routes (/, /recruitment)]
+    User --> BugHunt[Bug Hunt App (External)]
+    
+    BugHunt -- HMAC SHA-256 Signature --> Webhook[POST /api/hub/bugs/webhook]
+    PublicUI -- Zod Validation --> ApplyAPI[POST /api/recruitment/apply]
+    
+    Webhook --> ReqID[Request ID Tracing Layer]
+    ApplyAPI --> ReqID
+    
+    ReqID --> Repos[Repository Abstraction Layer\nTaskRepo, BugRepo, etc.]
+    
+    Operators([WDS Hub Operators]) -- Stateless HMAC Session --> HubAPI[Internal /api/hub/*]
+    HubAPI --> Repos
+    
+    Repos -- HTTP REST / Exponential Backoff --> Notion[(Notion Operational Backend\n11 Databases)]
 ```
-                   PUBLIC USERS / STUDENTS
-                              │
-              ┌───────────────┴───────────────┐
-              │                               │
-       Public Routes                     Bug Hunt App
-     (/, /recruitment, etc.)         (External Netlify)
-              │                               │
-      Zod Application Form           HMAC SHA-256 Webhook
-              │                      (Idempotent Ingestion)
-              ▼                               ▼
-    POST /api/recruitment/apply    POST /api/hub/bugs/webhook
-              │                               │
-              └───────────────┬───────────────┘
-                              │
-                  REQUEST ID TRACING LAYER
-                      (X-Request-ID)
-                              │
-                    SERVER VALIDATION LAYER
-                              │
-                    REPOSITORY ABSTRACTION
-    (TaskRepo, BugRepo, RecruitmentRepo, ProjectRepo,
-     EventRepo, ContentRepo, MemberRepo, IncidentRepo, AuditRepo)
-                              │
-                              ▼
-                   NOTION OPERATIONAL BACKEND
-        (Recruitment DB, Tasks DB, Bugs DB, Audit DB)
-                              ▲
-                              │
-                      WDS HUB OPERATORS
-             (Admin, Core Team, Team Lead, Member)
-                              │
-              Serverless HMAC Signed Session Cookie
-              (/api/hub/auth + Stateless Verification)
+
+## How It Works
+
+1. **Ingestion:** Data flows into the system via public Next.js forms or external webhooks.
+2. **Validation:** Zod schemas (`lib/validation.ts`) strictly validate the shape of incoming requests.
+3. **Tracing & Error Handling:** Every mutation generates an `X-Request-ID` for traceability (`lib/errors.ts`).
+4. **Repository Layer:** Abstract repository classes (e.g., `TasksRepository.ts`) map JSON payloads to Notion's complex property objects (`lib/notion/properties.ts`).
+5. **Pagination & Retries:** The Notion client (`lib/notion/client.ts`) handles rate limits with exponential backoff and transparently manages `start_cursor` pagination up to 500 items.
+
+## Tech Stack
+
+### Frontend
+- **Framework:** Next.js 14 (App Router)
+- **Language:** TypeScript
+- **Styling:** Tailwind CSS (`tailwind.config.ts`), `clsx`, `tailwind-merge`
+- **UI & Animations:** React 18, Framer Motion, Lucide React
+- **Icons:** Lucide React
+
+### Backend
+- **Framework:** Next.js Serverless API Routes
+- **Validation:** Zod
+- **Authentication:** Custom HMAC-SHA256 Stateless Sessions
+
+### Database
+- **Engine:** Notion API (`@notionhq/client`) used as an operational datastore / headless CMS.
+- **Schemas:** Enforced via application-level schemas (`lib/notion/schemaValidator.ts`).
+
+### Infrastructure
+- **Testing:** Vitest
+- **Deployment Platform:** Vercel (target architecture)
+
+## Repository Structure
+
+```text
+WDS-website/
+├── __tests__/             # 29 test suites (Auth, SSRF, Notion, Webhooks)
+├── app/                   # Next.js App Router (Public & Hub UI)
+│   ├── api/               # API Routes (20 distinct route domains)
+│   ├── hub/               # Authenticated WDS Hub UI
+│   └── recruitment/       # Public recruitment forms
+├── components/            # Reusable React components (Navbar, Terminal, UI)
+├── docs/                  # Runbooks, checklists, Notion schema definitions
+├── lib/                   
+│   ├── notion/            # Notion API client, pagination, mappers
+│   └── repositories/      # 25 repository pattern classes for data access
+├── public/                # Static assets
+└── package.json           # Dependencies and scripts
 ```
 
----
+## Prerequisites
 
-## 2. Production Security & Hardening Standards
+- **Node.js**: v20+ (recommended based on types)
+- **npm**: v9+
+- **Notion Account**: Workspace with integration credentials
+- **Git**
 
-### A. Serverless-Resilient Cryptographic Sessions (`lib/sessionStore.ts`)
-- **HMAC-SHA256 Signed Tokens**: Session cookies contain tamper-proof signed payloads (`<payload_b64>.<hmac_signature>`).
-- **Serverless Parity**: Works across multi-region serverless lambdas on Vercel without memory drift or requiring an external Redis.
-- **Revocation Support**: Instant revocation on logout via server-side session registry.
-- **Brute-Force Protection**: IP-based rate limiting (max 5 failed login attempts per 5 minutes).
+## Installation
 
-### B. Notion Pagination, Retries & Schema Diagnostics
-- **Cursor Pagination Engine (`lib/notion/client.ts`)**: Automatic `start_cursor` pagination loops handling up to 500 items per database query.
-- **Transient Error Retries**: 3x exponential backoff retry mechanism for 429 rate limits and 5xx upstream outages.
-- **Schema Validator (`lib/notion/schemaValidator.ts`)**: Validates property bindings on all 4 Notion databases (Recruitment, Tasks, Bugs, Websites) without exposing secrets.
-- **Admin Configuration Center (`/hub` → Settings & Admin)**: Restricted console for database diagnostics and data backups.
-
-### C. Observability, Errors & Request ID Tracing
-- **Request Tracing (`lib/errors.ts`)**: Every mutation and API request generates a random opaque identifier (`req_...`) returned via `X-Request-ID` and structured error responses `{ error: { code, message, requestId } }`.
-- **Standardized Error Codes**: `UNAUTHORIZED`, `FORBIDDEN`, `VALIDATION_ERROR`, `NOT_FOUND`, `CONFLICT`, `RATE_LIMITED`, `DATABASE_OFFLINE`, `DATABASE_SCHEMA_MISMATCH`, `WEBHOOK_INVALID`, `INTERNAL_ERROR`.
-
-### D. Data Integrity & Security Protections
-- **CSV Formula Injection Defense (`lib/csv.ts`)**: Sanitizes cells starting with `=, +, -, @` with a leading apostrophe to prevent spreadsheet code execution.
-- **Webhook Idempotency (`lib/webhook.ts`)**: Enforces single-delivery processing on `POST /api/hub/bugs/webhook` preventing duplicate bug creation on webhook replays.
-- **SSRF Defense (`lib/healthChecks.ts`)**: Strict domain allowlist (`msit.in`, `wds-bug-hunt.netlify.app`, `github.com`), blocking private IPs (`10.x`, `192.168.x`, `169.254.x`), loopbacks, and redirects.
-- **Candidate Privacy**: Strict candidate data isolation restricting evaluation scorecards exclusively to `CORE_TEAM` and `ADMIN`. Disallowed in `robots.ts` and excluded from `sitemap.xml`.
-
----
-
-## 3. Disaster Recovery & Backup Runbook
-
-Because Notion is the primary operational datastore, follow this protocol for backups and recovery:
-
-### Weekly / Sprint Backup SOP
-1. Log in to `/hub` with `ADMIN` credentials.
-2. Navigate to **Admin & Settings** → **Data Backup Console**.
-3. Download all 4 CSV datasets:
-   - `RECRUITMENT CSV`
-   - `SPRINT TASKS CSV`
-   - `BUG HUNT CSV`
-   - `SYSTEM AUDIT CSV`
-4. Store exported CSVs in the designated encrypted society drive folder.
-
-### Database Restoration Procedure (In case of accidental Notion database deletion)
-1. In the Notion workspace, create a new Database using the schema defined in `lib/notion/schemaValidator.ts`.
-2. Import the latest CSV backup into the newly created database.
-3. Obtain the new database ID from the Notion page URL (`notion.so/<workspace>/<DATABASE_ID>?v=...`).
-4. Update the corresponding environment variable in Vercel project settings:
-   - `NOTION_DATABASE_ID` (Recruitment)
-   - `NOTION_TASKS_DATABASE_ID` (Tasks)
-   - `NOTION_BUGS_DATABASE_ID` (Bugs)
-5. Redeploy the production branch. Navigate to `/hub` → **Admin** and verify status shows `ONLINE`.
-
----
-
-## 4. Yearly Leadership Handover Checklist (`WDS 2026` → `WDS 2027`)
-
-1. **GitHub Transfer**: Grant Owner role to incoming President and Tech Lead on `JayantOlhyan/WDS-website`.
-2. **Notion Admin Access**: Transfer workspace admin ownership for society databases.
-3. **Secret Rotation**: Regenerate `HUB_ADMIN_KEY`, `HUB_CORE_KEY`, and `BUG_HUNT_WEBHOOK_SECRET` in Vercel.
-4. **Candidate Archival**: Export final candidate CSVs and duplicate the Recruitment template for the new academic batch.
-5. **DNS & Vercel Verification**: Ensure domain records on college subdomains are bound to the incoming coordinator's email.
-6. **Member Review**: Transition graduating seniors to `ALUMNI` status in the Member directory.
-
----
-
-## 5. Environment Configuration
-
-Copy `.env.example` to `.env.local` and populate values:
-
+1. **Clone the repository:**
 ```bash
-# Node Environment
-NODE_ENV=development
-
-# Notion API Integration Secrets
-NOTION_API_KEY=secret_your_notion_integration_token
-NOTION_DATABASE_ID=your_recruitment_db_id
-NOTION_TASKS_DATABASE_ID=your_tasks_db_id
-NOTION_BUGS_DATABASE_ID=your_bugs_db_id
-
-# WDS Hub Role Access Keys
-HUB_ADMIN_KEY=wds-admin-2026
-HUB_CORE_KEY=wds-core-2026
-HUB_LEAD_KEY=wds-tech-2026
-HUB_MEMBER_KEY=wds-member-2026
-
-# Hub Session Secret (for HMAC signing)
-HUB_SESSION_SECRET=your_32_byte_cryptographic_secret
-
-# Bug Hunt Integration Webhook Secret
-BUG_HUNT_WEBHOOK_SECRET=your_hmac_shared_secret
+git clone https://github.com/JayantOlhyan/WDS-website.git
+cd WDS-website
 ```
 
----
-
-## 6. Local Development & Testing
-
+2. **Install dependencies:**
 ```bash
-# Install dependencies
 npm install
-
-# Run linter (ESLint)
-npm run lint
-
-# Run automated test suite (Vitest - 60 tests across 18 suites)
-npm test
-
-# Run development server
-npm run dev
-
-# Build production bundle (32 static & dynamic routes)
-npm run build
 ```
 
----
+3. **Configure Environment:**
+```bash
+cp .env.example .env.local
+```
+*(Populate the `.env.local` file according to the Environment Variables section).*
 
-## 7. Continuous Integration (GitHub Actions)
+## Environment Variables
 
-Every pull request and push to `main` triggers `.github/workflows/ci.yml`:
-1. `npm ci`
-2. `npm run lint` (ESLint Next.js validation)
-3. `npm test` (60 automated unit & integration test suites)
-4. `npm run build` (32 static & dynamic routes compiled)
+| Variable | Required | Purpose | Example |
+| -------- | -------- | ------- | ------- |
+| `NOTION_API_KEY` | Yes | Bearer token for Notion API | `ntn_secret_...` |
+| `NOTION_*_DATABASE_ID` | Yes | 11 IDs for respective Notion DBs | `abc123def456...` |
+| `HUB_ADMIN_KEY` | Yes | Password for Admin Role | `wds-admin-2026` |
+| `HUB_CORE_KEY` | Yes | Password for Core Role | `wds-core-2026` |
+| `HUB_SESSION_SECRET` | Yes | 32-byte secret for signing JWTs/Cookies | `super_secret_string` |
+| `BUG_HUNT_WEBHOOK_SECRET` | Yes | Shared secret for webhook payload validation | `hmac_secret_key` |
+| `NEXT_PUBLIC_APP_URL` | Yes | Base URL for metadata/routing | `http://localhost:3000` |
+
+## Local Development
+
+Start the development server:
+```bash
+npm run dev
+```
+The application will be available at `http://localhost:3000`. 
+- Public Site: `/`
+- Internal Hub: `/hub`
+
+To run linting:
+```bash
+npm run lint
+```
+
+## Docker / Self-Hosting
+
+**Not currently implemented.** The architecture relies heavily on Vercel's serverless environment, specifically relying on Next.js Edge and Node.js serverless functions. 
+
+## Database
+
+The project completely bypasses traditional SQL/NoSQL databases, utilizing **Notion** as the primary datastore via the `@notionhq/client`. 
+
+Data integrity is maintained by the application layer (`lib/notion/schemaValidator.ts`).
+
+### Core Tables (Notion Databases)
+1. **Tasks**: Status, Assignee, Project relation, Due Date.
+2. **Projects**: Name, Status, Wing, Tech Stack, URLs.
+3. **Candidates**: Application data, Branch, Selected Wing, Evaluation status.
+4. **Interviews**: Interviewer, Date, Rubric Scores.
+5. **Bugs**: Bug reports from webhooks.
+*(See `docs/NOTION-SETUP.md` for the complete 11 database schema).*
+
+## API
+
+Internal API routes serve the Hub and Webhooks.
+
+### Webhook Endpoint: `POST /api/hub/bugs/webhook`
+- **Purpose**: Ingest bug reports from external Netlify Bug Hunt platform.
+- **Authentication**: Requires `X-Hub-Signature-256` matching `BUG_HUNT_WEBHOOK_SECRET`.
+- **Behavior**: Idempotent processing. Drops duplicate replays.
+
+*(Other REST endpoints correspond directly to the 20 folders inside `app/api/`)*
+
+## Authentication
+
+Authentication is fully custom and stateless (`lib/sessionStore.ts`).
+- **Mechanism**: HMAC-SHA256 signed session cookies.
+- **Payload Format**: `<base64url_json_payload>.<hmac_sha256_hex>`
+- **Roles**: Built-in RBAC supporting `ADMIN`, `CORE_TEAM`, `TEAM_LEAD`, and `MEMBER`.
+- **Revocation**: Supported via an in-memory `revokedSessionIds` Set (designed for single-instance or sticky environments, though documented as Serverless compatible).
+
+## Security
+
+Security is a primary focus of this codebase. Implemented mechanisms include:
+- **SSRF Protection:** `lib/healthChecks.ts` enforces a strict domain allowlist (e.g., `msit.in`, `github.com`) and actively blocks private IP ranges (`10.x`, `192.168.x`, `127.0.0.1`).
+- **CSV Injection Defense:** `lib/csv.ts` sanitizes data exports, prefixing cells starting with `=, +, -, @` with an apostrophe.
+- **Webhook Idempotency:** Prevents replay attacks by dropping duplicate event IDs.
+- **Request Tracing:** Opaque `X-Request-ID` generation to track errors without leaking stack traces.
+- **Brute-Force Protection:** IP-based rate limiting on logins (documented).
+
+## Testing
+
+The project uses **Vitest**. The test suite is highly comprehensive.
+- **Test Framework:** Vitest
+- **Location:** `__tests__/` (29 test files)
+- **Coverage:** Includes RBAC logic, SSRF advanced bypass attempts, CSV injection, webhook idempotency, and session integrity.
+
+Run tests:
+```bash
+npm test
+```
+
+## Performance
+
+- **Pagination:** Custom pagination engine handles up to 500 items per Notion query.
+- **Resilience:** Implements a 3x exponential backoff retry mechanism for Notion API `429` (Rate Limited) and `5xx` errors.
+- **Caching:** Next.js App Router caching is utilized for static marketing pages.
+
+## Deployment
+
+Designed for deployment on **Vercel**.
+1. Connect GitHub repository to Vercel.
+2. Ensure all 21+ environment variables are populated in the Vercel project settings.
+3. Deploy `main` branch.
+
+GitHub Actions (`.github/workflows/ci.yml`) automatically runs linting and the 60 Vitest tests on all PRs prior to deployment.
+
+## Development Workflow
+
+1. Fork/Clone the repository.
+2. Create a feature branch.
+3. Run `npm test` locally to ensure no security regressions (especially in `lib/healthChecks.ts` or `sessionStore.ts`).
+4. Ensure ESLint passes (`npm run lint`).
+5. Open a PR against `main`.
+
+## Troubleshooting
+
+### Notion Database Schema Mismatch
+**Cause**: Someone manually renamed a column in Notion.
+**Resolution**: Check `/hub` Admin console. Match the Notion column names exactly with the required schema defined in `docs/NOTION-SETUP.md` and `lib/notion/schemaValidator.ts`.
+
+### Webhook Signatures Failing
+**Cause**: Secret mismatch between Bug Hunt Netlify and Main Vercel.
+**Resolution**: Ensure `BUG_HUNT_WEBHOOK_SECRET` matches exactly in both deployments. 
+
+## Known Limitations
+
+- **Notion Rate Limiting:** While the app has exponential backoff, extreme concurrent traffic to the Hub could exhaust Notion's API limits (3 requests per second).
+- **In-Memory Revocation in Serverless:** The session revocation `Set` in `lib/sessionStore.ts` is in-memory. In a distributed serverless environment (Vercel), a revoked token might still be valid for a few minutes on a different cold-started lambda instance unless a persistent store (Redis) is introduced.
+- **No Docker Support:** Not easily self-hostable outside of Next.js environments.
+
+## Roadmap
+
+### Completed
+- Public recruitment ingestion.
+- 11-database Notion integration.
+- Cryptographic serverless sessions.
+- Comprehensive security testing suite.
+
+### Planned
+- Dedicated PostgreSQL caching layer for Notion data to bypass API limits.
+- Redis integration for global session revocation synchronization.
+
+## Contributing
+
+1. Clone repository and install dependencies.
+2. Checkout a new branch (`feature/your-feature`).
+3. Commit your changes.
+4. Run `npm test` and `npm run lint`.
+5. Open a Pull Request.
+
+## License
+
+*(License not explicitly found in repository; assume standard proprietary internal use until explicitly licensed).*
+
+## Author
+
+Maintained by the Web Development Society at MSIT.
